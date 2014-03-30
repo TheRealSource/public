@@ -3,7 +3,7 @@
 local autoUpdate = true
 local silentUpdate = false
 
-local version = 0.3
+local version = 0.4
 
 --[[
 
@@ -35,7 +35,6 @@ local version = 0.3
         LazyUpdater     -- One of the most basic functions for every script we use
         Spell           -- Spells handled the way they should be handled
         DrawManager     -- Easy drawing of all kind of things, comes along with some other classes such as Circle
-        Combo           -- Combo class for basic combos without much logic, using the Spell class
 
 ]]
 
@@ -613,159 +612,6 @@ function Item:Clone()
 
 end
 
-
---[[
-
-  ..|'''.|                    '||              
-.|'     '    ...   .. .. ..    || ...    ...   
-||         .|  '|.  || || ||   ||'  || .|  '|. 
-'|.      . ||   ||  || || ||   ||    | ||   || 
- ''|....'   '|..|' .|| || ||.  '|...'   '|..|' 
-
-    Combo - Right order please
-
-    Just experimental, not used yet.
-
-]]
-
-class 'Combo'
-
-local MAX_COMBO_WAIT_TIME = 1.5
-_G.__combo_activeCombos = {}
-
-function __combo_OnTick()
-
-    local currentTick = GetTickCount()
-    for index, combo in ipairs(_G.__combo_activeCombos) do
-        if combo.active and combo.abortTick < currentTick then
-            combo:Abort()
-            -- Don't remove it there since we already do it in Abort()
-        end
-    end
-
-end
-
-function Combo:__init(...)
-    
-    self.target = nil
-    self.abortWhenInterrupted = true
-    self.comboOrder = {}
-    self:SetOrder(...)
-
-    self.active = false
-    self.abortTick = 0
-
-    self.currentCombo = nil
-    self.currentSpell = nil
-
-    AddProcessSpellCallback(function(unit, spell) self:OnProcessSpell(unit, spell) end)
-
-    if not _G.ComboInstanced then
-        _G.ComboInstanced = true
-        AddTickCallback(__combo_OnTick)
-    end
-
-end
-
-function Combo:SetOrder(...)
-
-    self.comboOrder = {}
-
-    local numSpells = select("#", ...)
-    for i = 1, numSpells do
-        local spell = select(i, ...)
-
-        if type(spell) == "number" then
-            table.insert(self.comboOrder, Spell(spell))
-        else
-            table.insert(self.comboOrder, spell)
-        end
-    end
-
-end
-
-function Combo:Execute(target)
-
-    if not self.active then
-        self.currentCombo = tableDeepCopy(comboOrder)
-        self.active = true
-        self.abortTick = GetTickCount() + (MAX_COMBO_WAIT_TIME * 1000)
-        self.target = target
-
-        self:CastNextSpell()
-    end
-
-end
-
-function Combo:Abort()
-
-    for index, combo in ipairs(_G.__combo_activeCombos) do
-        if combo == self then
-            table.remove(_G.__combo_activeCombos, index)
-        end
-    end
-    self.active = false
-    self.target = nil
-
-end
-
-function Combo:CastNextSpell()
-
-    if #self.currentCombo > 0 then
-        self.currentSpell = self.currentCombo[1]
-        table.remove(self.currentCombo, 1)
-
-        self.currentSpell:Cast(self.target)
-    else
-        self:Abort()
-    end
-
-end
-
-function Combo:CalculateDamage(target)
-end
-
-function Combo:IsReady()
-
-    local totalMana = 0
-    for _, spell in ipairs(self.comboOrder) do
-        if not spell:ready() then
-            return false
-        end
-    end
-
-    return self:GetManaUsage(false) <= player.mana
-
-end
-
-function Combo:GetManaUsage(ready)
-
-    local totalMana = 0
-    for _, spell in ipairs(self.comboOrder) do
-        if ready == true and spell:ready() or not ready then
-            totalMana = totalMana + spell:manaUsage()
-        end
-    end
-
-    return totalMana
-
-end
-
-function Combo:OnProcessSpell(unit, spell)
-
-    -- Validate
-    if not self.active or not unit or not unit.valid or not unit.isMe or not spell or isAASpell(spell) then return end
-
-    if spell.channelDuration then
-        self.abortTick = self.abortTick + spell.channelDuration
-        DelayAction(function()
-            self:CastNextSpell()
-        end, spell.channelDuration / 1000)
-    else
-        self:CastNextSpell()
-    end
-
-end
 
 --[[
 
