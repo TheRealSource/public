@@ -3,7 +3,7 @@
 local autoUpdate = true
 local silentUpdate = false
 
-local version = 0.4
+local version = 0.5
 
 --[[
 
@@ -126,7 +126,7 @@ function LazyUpdater:CheckUpdate()
             if self.FILE_VERSION < self.SERVER_VERSION then
                 self.printMessage("New version available: " .. self.SERVER_VERSION)
                 self.printMessage("Updating, please don't press F9")
-                DownloadFile(self.UPDATE_URL, self.UPDATE_FILE_PATH, function () self.printMessage("Successfully updated. (v" .. version .. " -> v" .. self.SERVER_VERSION .. "), press F9 twice to load the updated version.") end)
+                DownloadFile(self.UPDATE_URL, self.UPDATE_FILE_PATH, function () self.printMessage("Successfully updated. (v" .. self.FILE_VERSION .. " -> v" .. self.SERVER_VERSION .. "), press F9 twice to load the updated version.") end)
             else
                 self.printMessage("You've got the latest version: v" .. self.SERVER_VERSION)
             end
