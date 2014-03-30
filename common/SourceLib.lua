@@ -1,9 +1,9 @@
 -- Change autoUpdate to false if you wish to not receive auto updates.
 -- Change silentUpdate to true if you wish not to receive any message regarding updates
-local autoUpdate = true
+local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.7
+local version = 0.8
 
 --[[
 
@@ -455,10 +455,20 @@ end
 
     DrawManager - Tired of having to draw everything over and over again? Then use this!
 
-]]
+    Functions:
+        DrawManager()
 
+    Methods:
+        DrawManager:AddCircle(circle)
+        DrawManager:CreateCircle(position, radius, width, color)
+        DrawManager:OnDraw()
+
+]]
 class 'DrawManager'
 
+--[[
+    New instance of DrawManager
+]]
 function DrawManager:__init()
 
     self.objects = {}
@@ -467,6 +477,9 @@ function DrawManager:__init()
 
 end
 
+--[[
+    Add an existing circle to the draw manager
+]]
 function DrawManager:AddCircle(circle)
 
     assert(circle, "DrawManager: circle is invalid!")
@@ -479,6 +492,15 @@ function DrawManager:AddCircle(circle)
 
 end
 
+--[[
+    Create a new circle and add it aswell to the DrawManager instance
+
+    @param position | vector | Center of the circle
+    @param radius   | float  | Radius of the circle
+    @param width    | int    | Width of the circle outline
+    @param color    | table  | Color of the circle in a tale format { a, r, g, b }
+    @return         | class  | Instance of the newly create Circle class
+]]
 function DrawManager:CreateCircle(position, radius, width, color)
 
     local circle = Circle(position, radius, width, color)
@@ -487,6 +509,9 @@ function DrawManager:CreateCircle(position, radius, width, color)
 
 end
 
+--[[
+    DO NOT CALL THIS MANUALLY! This will be called automatically.
+]]
 function DrawManager:OnDraw()
 
     for _, object in ipairs(self.objects) do
@@ -497,15 +522,56 @@ function DrawManager:OnDraw()
 
 end
 
+--[[
 
+                  ..|'''.|  ||                  '||          
+                .|'     '  ...  ... ..    ....   ||    ....  
+                ||          ||   ||' '' .|   ''  ||  .|...|| 
+                '|.      .  ||   ||     ||       ||  ||      
+                 ''|....'  .||. .||.     '|...' .||.  '|...' 
+
+    Functions:
+        Circle(position, radius, width, color)
+
+    Members:
+        Circle.enabled  | bool   | Enable or diable the circle (displayed)
+        Circle.mode     | int    | See circle modes below
+        Circle.position | vector | Center of the circle
+        Circle.radius   | float  | Radius of the circle
+        -- These are not changeable when a menu is set
+        Circle.width    | int    | Width of the circle outline
+        Circle.color    | table  | Color of the circle in a tale format { a, r, g, b }
+        Circle.quality  | float  | Quality of the circle, the higher the smoother the circle
+
+    Methods:
+        Circle:AddToMenu(menu, paramText, addColor, addWidth, addQuality)
+        Circle:SetEnabled(enabled)
+        Circle:Set2D()
+        Circle:Set3D()
+        Circle:SetMinimap()
+        Circle:SetQuality(qualtiy)
+        Circle:SetDrawCondition(condition)
+        Circle:Draw()
+
+]]
 class 'Circle'
 
+-- Circle modes
 CIRCLE_2D      = 0
 CIRCLE_3D      = 1
 CIRCLE_MINIMAP = 2
 
+-- Number of currently created circles
 local circleCount = 1
 
+--[[
+    New instance of Circle
+
+    @param position | vector | Center of the circle
+    @param radius   | float  | Radius of the circle
+    @param width    | int    | Width of the circle outline
+    @param color    | table  | Color of the circle in a tale format { a, r, g, b }
+]]
 function Circle:__init(position, radius, width, color)
 
     assert(position and position.x and (position.y and position.z or position.y), "Circle: position is invalid!")
@@ -536,6 +602,16 @@ function Circle:__init(position, radius, width, color)
 
 end
 
+--[[
+    Adds this circle to a given menu
+
+    @param menu       | scriptConfig | Instance of script config to add this circle to
+    @param paramText  | string       | Text for the menu entry
+    @param addColor   | bool         | Add color option
+    @param addWidth   | bool         | Add width option
+    @param addQuality | bool         | Add quality option
+    @return           | class        | The current instance
+]]
 function Circle:AddToMenu(menu, paramText, addColor, addWidth, addQuality)
 
     assert(menu, "Circle: menu is invalid!")
@@ -574,6 +650,12 @@ function Circle:AddToMenu(menu, paramText, addColor, addWidth, addQuality)
 
 end
 
+--[[
+    Set the enable status of the circle
+
+    @param enabled | bool  | Enable state of this circle
+    @return        | class | The current instance
+]]
 function Circle:SetEnabled(enabled)
 
     self.enabled = enabled
@@ -581,6 +663,11 @@ function Circle:SetEnabled(enabled)
 
 end
 
+--[[
+    Set this circle to be displayed 2D
+
+    @return | class | The current instance
+]]
 function Circle:Set2D()
 
     self.mode = CIRCLE_2D
@@ -588,6 +675,11 @@ function Circle:Set2D()
 
 end
 
+--[[
+    Set this circle to be displayed 3D
+
+    @return | class | The current instance
+]]
 function Circle:Set3D()
 
     self.mode = CIRCLE_3D
@@ -595,6 +687,11 @@ function Circle:Set3D()
 
 end
 
+--[[
+    Set this circle to be displayed on the minimap
+
+    @return | class | The current instance
+]]
 function Circle:SetMinimap()
 
     self.mode = CIRCLE_MINIMAP
@@ -602,6 +699,11 @@ function Circle:SetMinimap()
 
 end
 
+--[[
+    Set the display quality of this circle
+
+    @return | class | The current instance
+]]
 function Circle:SetQuality(qualtiy)
 
     assert(qualtiy and type(qualtiy) == "number", "Circle: quality is invalid!")
@@ -610,6 +712,11 @@ function Circle:SetQuality(qualtiy)
 
 end
 
+--[[
+    Set the draw condition of this circle
+
+    @return | class | The current instance
+]]
 function Circle:SetDrawCondition(condition)
 
     assert(condition and type(condition) == "function", "Circle: condition is invalid!")
@@ -618,6 +725,9 @@ function Circle:SetDrawCondition(condition)
 
 end
 
+--[[
+    Draw this circle, should only be called from OnDraw()
+]]
 function Circle:Draw()
 
     -- Don't draw if condition is not met
@@ -662,62 +772,6 @@ function Circle:__eq(other)
     ]]
 
     return other._circleId and other._circleId == self._circleId or false
-
-end
-
-
---[[
-
-'||'   .                      
- ||  .||.    ....  .. .. ..   
- ||   ||   .|...||  || || ||  
- ||   ||   ||       || || ||  
-.||.  '|.'  '|...' .|| || ||. 
-
-    Item - Proper handling for my favourite item
-
-]]
-
-class 'Item'
-
-function Item:__init(itemId, active)
-
-    assert(itemId ~= nil and type(itemId) == "number", "Item: Can't initialize Item without valid itemId.")
-
-    self.itemId = itemId
-    self.active = active
-
-end
-
-function Item:SetSkillshot(skillshotType, width, delay, speed, collision)
-end
-
-function Item:SetAOE(radius, minTargetsAoe)
-
-    self.hasAoe = true
-    self.radius = radius or 0
-    self.minTargetsAoe = minTargetsAoe or 0
-
-    return self
-
-end
-
-function Item:Cast(param1, param2)
-end
-
-function Item:GetCooldown()
-end
-
-function Item:Clone()
-
-    local clonedItem = Item(self.itemId)
-
-    -- Duplicate each member
-    clonedItem.hasAoe = self.hasAoe
-    clonedItem.radius = self.radius
-    clonedItem.minTargetsAoe = self.minTargetsAoe
-
-    return clonedItem
 
 end
 
