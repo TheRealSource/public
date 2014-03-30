@@ -3,7 +3,7 @@
 local autoUpdate = true
 local silentUpdate = false
 
-local version = 0.1
+local version = 0.2
 
 --[[
 
@@ -61,7 +61,7 @@ local version = 0.1
         LazyUpdater(scriptName, version, hostPath, filePath)
 
     Members:
-        LazyUpdater.silent
+        LazyUpdater.silent | bool | Defines wheather to print notifications or not
 
     Methods:
         LazyUpdater:SetSilent(silent)
@@ -204,7 +204,7 @@ end
         Spell.minTargetsAoe | int   | Set minimum targets for AOE damage
 
     Methods:
-        Spell:SetSkillshot(skillshotType, width, delay, speed, collision)
+        Spell:SetSkillshot(VP, skillshotType, width, delay, speed, collision)
         Spell:SetAOE(useAoe, radius, minTargetsAoe)
         Spell:SetHitChance(hitChance)
         Spell:ValidTarget(target)
@@ -241,6 +241,7 @@ end
 --[[
     Define this spell as skillshot (can't be reversed)
 
+    @param VP            | class | Instance of VPrediction
     @param skillshotType | int   | Type of this skillshot
     @param width         | float | Width of the skillshot
     @param delay         | float | (optional) Delay in seconds
@@ -248,10 +249,11 @@ end
     @param collision     | bool  | (optional) Respect unit collision when casting
     @rerurn              | class | The current instance
 ]]
-function Spell:SetSkillshot(skillshotType, width, delay, speed, collision)
+function Spell:SetSkillshot(VP, skillshotType, width, delay, speed, collision)
 
     assert(skillshotType ~= nil, "Spell: Need at least the skillshot type!")
 
+    self.VP = VP
     self.skillshotType = skillshotType
     self.width = width or 0
     self.delay = delay or 0
@@ -320,15 +322,15 @@ function Spell:Cast(param1, param2)
         local castPosition, hitChance, nTargets
         if self.skillshotType == SKILLSHOT_LINEAR then
             if self.useAoe then
-                castPosition, hitChance, nTargets = VP:GetLineAOECastPosition(param1, self.delay, self.radius, self.range, self.speed, player)
+                castPosition, hitChance, nTargets = self.VP:GetLineAOECastPosition(param1, self.delay, self.radius, self.range, self.speed, player)
             else
-                castPosition, hitChance = VP:GetLineCastPosition(param1, self.delay, self.width, self.range, self.speed, player, self.collision)
+                castPosition, hitChance = self.VP:GetLineCastPosition(param1, self.delay, self.width, self.range, self.speed, player, self.collision)
             end
         elseif self.skillshotType == SKILLSHOT_CIRCULAR then
             if self.useAoe then
-                castPosition, hitChance, nTargets = VP:GetCircularAOECastPosition(param1, self.delay, self.radius, self.range, self.speed, player)
+                castPosition, hitChance, nTargets = self.VP:GetCircularAOECastPosition(param1, self.delay, self.radius, self.range, self.speed, player)
             else
-                castPosition, hitChance = VP:GetCircularCastPosition(param1, self.delay, self.width, self.range, self.speed, player, self.collision)
+                castPosition, hitChance = self.VP:GetCircularCastPosition(param1, self.delay, self.width, self.range, self.speed, player, self.collision)
             end
         end
 
@@ -411,9 +413,9 @@ function DrawManager:AddCircle(circle)
 
 end
 
-function DrawManager:CreateCircle(position, radius, width, color, lagFree)
+function DrawManager:CreateCircle(position, radius, width, color)
 
-    local circle = Circle(position, radius, width, color, lagFree)
+    local circle = Circle(position, radius, width, color)
     self:AddCircle(circle)
     return circle
 
@@ -432,27 +434,82 @@ end
 
 class 'Circle'
 
-CIRCLE_2D = 0
-CIRCLE_3D = 1
-CIRCLE_MINIMAP = 3
+CIRCLE_2D      = 0
+CIRCLE_3D      = 1
+CIRCLE_MINIMAP = 2
 
-function Circle:__init(position, radius, width, color, lagFree)
+function Circle:__init(position, radius, width, color)
 
     assert(position and position.x and (position.y and position.z or position.y), "Circle: position is invalid!")
     assert(radius and type(radius) == "number", "Circle: radius is invalid!")
+    assert(not color or color and type(color) == "table" and #color == 4, "Circle: color is invalid!")
 
-    -- Members
     self.enabled   = true
     self.condition = nil
-    
-    self.lagFree  = lagFree or true
+
+    self.menu        = nil
+    self.menuEnabled = nil
+
+    self.subMenu     = nil
+    self.menuColor   = nil
+    self.menuWidth   = nil
+    self.menuQuality = nil
+
     self.mode     = CIRCLE_3D
 
     self.position = position
     self.radius   = radius
     self.width    = width or 1
-    self.color    = color or ARGB(255, 255, 255, 255)
-    self.quality  = nil
+    self.color    = color or { 255, 255, 255, 255 }
+    self.quality  = radius / 5
+
+    if not _G.__circle_menuCount then
+        _G.__circle_menuCount = 1
+    end
+
+end
+
+function Circle:AddToMenu(menu, paramText, addColor, addWidth, addQuality)
+
+    assert(menu, "Circle: menu is invalid!")
+    assert(self.menu == nil, "Circle: Already bound to a menu!")
+
+    self.menu = menu
+
+    local paramId = "circle" .. _G.__circle_menuCount
+    menu:addParam(paramId, paramText or "Draw Circle " .. _G.__circle_menuCount, SCRIPT_PARAM_ONOFF, self.enabled)
+    self.menuEnabled = menu._param[#menu._param]
+
+    if addColor or addWidth or addQuality then
+
+        menu:addSubMenu("Options", paramId .. "sub")
+        self.subMenu = menu[paramId .. "sub"]
+
+        if addColor then
+            paramId = "circleColor" .. _G.__circle_menuCount
+            self.subMenu:addParam(paramId, "Color", SCRIPT_PARAM_COLOR, self.color)
+            self.menuColor = self.subMenu._param[#self.subMenu._param]
+            self.subMenu[self.menuColor.var] = self.color
+        end
+
+        if addWidth then
+            paramId = "circleWidth" .. _G.__circle_menuCount
+            self.subMenu:addParam(paramId, "Width", SCRIPT_PARAM_SLICE, self.width, 1, 5)
+            self.menuWidth = self.subMenu._param[#self.subMenu._param]
+            self.subMenu[self.menuWidth.var] = self.width
+        end
+
+        if addQuality then
+            paramId = "circleQuality" .. _G.__circle_menuCount
+            self.subMenu:addParam(paramId, "Quality", SCRIPT_PARAM_SLICE, self.quality, 10, math.round(self.radius / 5))
+            self.menuQuality = self.subMenu._param[#self.subMenu._param]
+            self.subMenu[self.menuQuality.var] = self.quality
+        end
+
+    end
+
+    _G.__circle_menuCount = _G.__circle_menuCount + 1
+    return self
 
 end
 
@@ -503,17 +560,53 @@ end
 function Circle:Draw()
 
     -- Don't draw if condition is not met
-    if self.condition and not self.condition() then return end
+    if self.condition and self.condition() == false then return end
+
+    local color   = TARGB(self.color)
+    local width   = self.width
+    local quality = self.quality
+
+    -- Menu found
+    if self.menu then 
+        if self.menuEnabled then
+            if not self.menu[self.menuEnabled.var] then return end
+        end
+    end
+
+    -- Submenu
+    if self.subMenu then
+        if self.menuColor then
+            color = TARGB(self.subMenu[self.menuColor.var])
+        end
+        if self.menuWidth then
+            width = self.subMenu[self.menuWidth.var]
+        end
+        if self.menuQuality then
+            quality = self.subMenu[self.menuQuality.var]
+        end
+    end
 
     if self.mode == CIRCLE_2D then
-        DrawCircle2D(self.position.x, self.position.y, self.radius, self.width, self.color, self.quality)
+        DrawCircle2D(self.position.x, self.position.y, self.radius, width, color, quality)
     elseif self.mode == CIRCLE_3D then
-        DrawCircle3D(self.position.x, self.position.y, self.position.z, self.radius, self.width, self.color, self.quality)
+        DrawCircle3D(self.position.x, self.position.y, self.position.z, self.radius, width, color, quality)
     elseif self.mode == CIRCLE_MINIMAP then
-        DrawCircleMinimap(self.position.x, self.position.y, self.position.z, self.radius, self.width, self.color, self.quality)
+        DrawCircleMinimap(self.position.x, self.position.y, self.position.z, self.radius, width, color, quality)
     else
         print("Circle: Something is wrong with the circle.mode!")
     end
+
+end
+
+function Circle:__eq(other)
+
+    if other.enabled  == nil or other.enabled  ~= self.enabled  then return false end
+    if other.position == nil or other.position ~= self.position then return false end
+    if other.radius   == nil or other.radius   ~= self.radius   then return false end
+    if other.color    == nil or other.color    ~= self.color    then return false end
+    if other.width    == nil or other.width    ~= self.width    then return false end
+
+    return true
 
 end
 
@@ -738,6 +831,26 @@ end
     Util - Just utils.
 ]]
 
+function spellToString(id)
+
+    if id == _Q then return "Q" end
+    if id == _W then return "W" end
+    if id == _E then return "E" end
+    if id == _R then return "R" end
+
+end
+
+function TARGB(colorTable)
+
+    assert(colorTable and type(colorTable) == "table" and #colorTable == 4, "TARGB: colorTable is invalid!")
+    return ARGB(colorTable[1], colorTable[2], colorTable[3], colorTable[4])
+
+end
+
+function pingClient(x, y, pingType)
+    Packet("R_PING", {x = y, y = y, type = pingType and pingType or PING_FALLBACK}):receive()
+end
+
 local __util_autoAttack   = { "frostarrow" }
 local __util_noAutoAttack = { "shyvanadoubleattackdragon",
                               "shyvanadoubleattack",
@@ -799,7 +912,3 @@ end
 if autoUpdate then
     LazyUpdater("LazyLib", version, "bitbucket.org", "/TheRealSource/public/raw/master/common/LazyLib.lua"):SetSilent(silentUpdate):CheckUpdate()
 end
-
--- Initialize VPrediction
-require "VPrediction"
-VP = VPrediction()
