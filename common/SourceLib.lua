@@ -3,7 +3,7 @@
 local autoUpdate = true
 local silentUpdate = false
 
-local version = 0.2
+local version = 0.3
 
 --[[
 
@@ -53,7 +53,7 @@ local version = 0.2
 
     Introduction:
         Scripts that want to use this class need to have a version field at the beginning of the script, like this:
-            local version = YOUR_NUMERIC_VERSION (yes, local is needed and by numeric I mean a number, not a string!)
+            local version = YOUR_VERSION (YOUR_VERSION can either be a string a a numeric value!)
         It does not need to be exactly at the beginning, like in this script, but it has to be within the first 100
         chars of the file, otherwise the webresult won't see the field, as it gathers only about 100 lines
 
@@ -65,8 +65,7 @@ local version = 0.2
 
     Methods:
         LazyUpdater:SetSilent(silent)
-        LazuUpdater:CheckUpdate(callback)
-        LazyUpdater:DownloadUpdate(callback)
+        LazuUpdater:CheckUpdate()
 
 ]]
 class 'LazyUpdater'
@@ -84,12 +83,15 @@ function LazyUpdater:__init(scriptName, version, host, hostPath, filePath)
 
     self.UPDATE_SCRIPT_NAME = scriptName
     self.UPDATE_HOST = host
-    self.UPDATE_PATH = hostPath
+    self.UPDATE_PATH = hostPath .. "?rand="..math.random(1,10000)
     self.UPDATE_FILE_PATH = filePath
     self.UPDATE_URL = "https://"..self.UPDATE_HOST..self.UPDATE_PATH
 
     self.FILE_VERSION = version
     self.SERVER_VERSION = nil
+
+    self.printMessage = function(message) if not self.silent then print("<font color=\"#6699ff\"><b>" .. self.UPDATE_SCRIPT_NAME .. ":</b></font> <font color=\"#FFFFFF\">" .. message .. "</font>") end end
+    self.getVersion = function(version) return tonumber(string.match(version, "%d+%.%d+")) end
 
     -- Members
     self.silent = false
@@ -110,74 +112,30 @@ function LazyUpdater:SetSilent(silent)
 end
 
 --[[
-    Check for an update of the script.
-
-    @param callback | function | (optional) When given, it will notify the callback function about the update status.
-                                 1  = Update available
-                                 0  = Update to date
-                                 -1 = Checking for update failed!
-    @return         | class    | The current instance when @param callback was given
-    @return         | int      | Update status value (1, 0 or -1) when @param callback was given
+    Check for an update and downloads it when available
 ]]
-function LazyUpdater:CheckUpdate(callback)
+function LazyUpdater:CheckUpdate()
 
     -- Validate callback
     callback = callback and type(callback) == "function" and callback or nil
 
-    self.webResult = nil
-    GetAsyncWebResult(self.UPDATE_HOST, self.UPDATE_PATH, function(data) self.webResult = d end)
-    function update()
-        if self.webResult ~= nil then
-            local startPos, endPos, junk = nil, nil, nil
-            junk, startPos = string.find(self.webResult, "local version = ")
-            if startPos then
-                endPos, junk = string.find(self.webResult, "\n", startPos)
-            end
-            if endPos then
-                self.SERVER_VERSION = tonumber(string.sub(self.webResult, startPos, endPos))
-            end
-            if self.SERVER_VERSION and self.SERVER_VERSION > self.FILE_VERSION then
-                if callback then
-                    callback(self, 1)
-                else
-                    self:DownloadUpdate()
-                end
-            elseif self.SERVER_VERSION then
-                if callback then
-                    callback(self, 0)
-                else
-                    if not self.silent then print("<font color=\"#8080F0\">"..player.charName..": You've got the latest version: v"..self.SERVER_VERSION.."</font>") end
-                end
+    local webResult = GetWebResult(self.UPDATE_HOST, self.UPDATE_PATH, "", 5)
+    if webResult then
+        self.SERVER_VERSION = string.match(webResult, "%s*local%s+version%s+=%s+.*%d+%.%d+")
+        if self.SERVER_VERSION then
+            self.SERVER_VERSION = self.getVersion(self.SERVER_VERSION)
+            if self.FILE_VERSION < self.SERVER_VERSION then
+                self.printMessage("New version available: " .. self.SERVER_VERSION)
+                self.printMessage("Updating, please don't press F9")
+                DownloadFile(self.UPDATE_URL, self.UPDATE_FILE_PATH, function () self.printMessage("Successfully updated. (v" .. version .. " -> v" .. self.SERVER_VERSION .. "), press F9 twice to load the updated version.") end)
             else
-                if callback then
-                    callback(self, -1)
-                else
-                    if not self.silent then print("<font color=\"#8080F0\">"..player.charName..": Something went wrong! Please manually update the script!</font>") end
-                end
+                self.printMessage("You've got the latest version: v" .. self.SERVER_VERSION)
             end
-            self.webResult = nil
+        else
+            self.printMessage("Something went wrong! Please manually update the script!")
         end
-    end
-    AddTickCallback(update)
-
-end
-
---[[
-    Attempts to download an updated version of the script. This will not do anything if the version is already up to date or the server version is incorrect.
-
-    @param callback | function | (optional) When given, it will trigger callback. (example usage: notify chat)
-]]
-function LazyUpdater:DownloadUpdate(callback)
-
-    -- Validate callback
-    callback = callback and type(callback) == "function" and callback or nil
-
-    if self.SERVER_VERSION and self.SERVER_VERSION > self.FILE_VERSION then
-        DownloadFile(UPDATE_URL.."?nocache"..myHero.charName..os.clock(), UPDATE_FILE_PATH, callback and callback or
-            function ()
-                if not self.silent then print("<font color=\"#8080F0\">"..player.charName..": Successfully updated. (v"..version.." -> v"..serverVersion..")</font>") end
-            end
-        )
+    else
+        self.printMessage("Error downloading version info!")
     end
 
 end
@@ -438,6 +396,8 @@ CIRCLE_2D      = 0
 CIRCLE_3D      = 1
 CIRCLE_MINIMAP = 2
 
+local circleCount = 1
+
 function Circle:__init(position, radius, width, color)
 
     assert(position and position.x and (position.y and position.z or position.y), "Circle: position is invalid!")
@@ -449,13 +409,11 @@ function Circle:__init(position, radius, width, color)
 
     self.menu        = nil
     self.menuEnabled = nil
-
-    self.subMenu     = nil
     self.menuColor   = nil
     self.menuWidth   = nil
     self.menuQuality = nil
 
-    self.mode     = CIRCLE_3D
+    self.mode = CIRCLE_3D
 
     self.position = position
     self.radius   = radius
@@ -463,9 +421,10 @@ function Circle:__init(position, radius, width, color)
     self.color    = color or { 255, 255, 255, 255 }
     self.quality  = radius / 5
 
-    if not _G.__circle_menuCount then
-        _G.__circle_menuCount = 1
-    end
+    self.circleId  = "circle" .. circleCount
+    self.circleNum = circleCount
+
+    circleCount = circleCount + 1
 
 end
 
@@ -474,41 +433,35 @@ function Circle:AddToMenu(menu, paramText, addColor, addWidth, addQuality)
     assert(menu, "Circle: menu is invalid!")
     assert(self.menu == nil, "Circle: Already bound to a menu!")
 
-    self.menu = menu
+    menu:addSubMenu(paramText or "Circle " .. self.circleNum, self.circleId)
+    self.menu = menu[self.circleId]
 
-    local paramId = "circle" .. _G.__circle_menuCount
-    menu:addParam(paramId, paramText or "Draw Circle " .. _G.__circle_menuCount, SCRIPT_PARAM_ONOFF, self.enabled)
+    -- Enabled
+    self.menu:addParam(self.circleId .. "enabled", "Enabled", SCRIPT_PARAM_ONOFF, self.enabled)
     self.menuEnabled = menu._param[#menu._param]
 
     if addColor or addWidth or addQuality then
 
-        menu:addSubMenu("Options", paramId .. "sub")
-        self.subMenu = menu[paramId .. "sub"]
-
+        -- Color
         if addColor then
-            paramId = "circleColor" .. _G.__circle_menuCount
-            self.subMenu:addParam(paramId, "Color", SCRIPT_PARAM_COLOR, self.color)
-            self.menuColor = self.subMenu._param[#self.subMenu._param]
-            self.subMenu[self.menuColor.var] = self.color
+            self.menu:addParam(self.circleId .. "color", "Color", SCRIPT_PARAM_COLOR, self.color)
+            self.menuColor = self.menu._param[#self.menu._param]
         end
 
+        -- Width
         if addWidth then
-            paramId = "circleWidth" .. _G.__circle_menuCount
-            self.subMenu:addParam(paramId, "Width", SCRIPT_PARAM_SLICE, self.width, 1, 5)
-            self.menuWidth = self.subMenu._param[#self.subMenu._param]
-            self.subMenu[self.menuWidth.var] = self.width
+            self.menu:addParam(self.circleId .. "width", "Width", SCRIPT_PARAM_SLICE, self.width, 1, 5)
+            self.menuWidth = self.menu._param[#self.menu._param]
         end
 
+        -- Quality
         if addQuality then
-            paramId = "circleQuality" .. _G.__circle_menuCount
-            self.subMenu:addParam(paramId, "Quality", SCRIPT_PARAM_SLICE, self.quality, 10, math.round(self.radius / 5))
-            self.menuQuality = self.subMenu._param[#self.subMenu._param]
-            self.subMenu[self.menuQuality.var] = self.quality
+            self.menu:addParam(self.circleId .. "quality", "Quality", SCRIPT_PARAM_SLICE, self.quality, 10, math.round(self.radius / 5))
+            self.menuQuality = self.menu._param[#self.menu._param]
         end
 
     end
 
-    _G.__circle_menuCount = _G.__circle_menuCount + 1
     return self
 
 end
@@ -562,36 +515,28 @@ function Circle:Draw()
     -- Don't draw if condition is not met
     if self.condition and self.condition() == false then return end
 
-    local color   = TARGB(self.color)
-    local width   = self.width
-    local quality = self.quality
-
     -- Menu found
     if self.menu then 
         if self.menuEnabled then
             if not self.menu[self.menuEnabled.var] then return end
         end
-    end
-
-    -- Submenu
-    if self.subMenu then
         if self.menuColor then
-            color = TARGB(self.subMenu[self.menuColor.var])
+            self.color = self.menu[self.menuColor.var]
         end
         if self.menuWidth then
-            width = self.subMenu[self.menuWidth.var]
+            self.width = self.menu[self.menuWidth.var]
         end
         if self.menuQuality then
-            quality = self.subMenu[self.menuQuality.var]
+            self.quality = self.menu[self.menuQuality.var]
         end
     end
 
     if self.mode == CIRCLE_2D then
-        DrawCircle2D(self.position.x, self.position.y, self.radius, width, color, quality)
+        DrawCircle2D(self.position.x, self.position.y, self.radius, self.width, TARGB(self.color), self.quality)
     elseif self.mode == CIRCLE_3D then
-        DrawCircle3D(self.position.x, self.position.y, self.position.z, self.radius, width, color, quality)
+        DrawCircle3D(self.position.x, self.position.y, self.position.z, self.radius, self.width, TARGB(self.color), self.quality)
     elseif self.mode == CIRCLE_MINIMAP then
-        DrawCircleMinimap(self.position.x, self.position.y, self.position.z, self.radius, width, color, quality)
+        DrawCircleMinimap(self.position.x, self.position.y, self.position.z, self.radius, self.width, TARGB(self.color), self.quality)
     else
         print("Circle: Something is wrong with the circle.mode!")
     end
@@ -600,13 +545,15 @@ end
 
 function Circle:__eq(other)
 
+    --[[
     if other.enabled  == nil or other.enabled  ~= self.enabled  then return false end
     if other.position == nil or other.position ~= self.position then return false end
     if other.radius   == nil or other.radius   ~= self.radius   then return false end
     if other.color    == nil or other.color    ~= self.color    then return false end
     if other.width    == nil or other.width    ~= self.width    then return false end
+    ]]
 
-    return true
+    return other.circleId and other.circleId == self.circleId or false
 
 end
 
@@ -910,5 +857,5 @@ end
 
 -- Update script
 if autoUpdate then
-    LazyUpdater("LazyLib", version, "bitbucket.org", "/TheRealSource/public/raw/master/common/LazyLib.lua"):SetSilent(silentUpdate):CheckUpdate()
+    LazyUpdater("SourceLib", version, "bitbucket.org", "/TheRealSource/public/raw/master/common/SourceLib.lua"):SetSilent(silentUpdate):CheckUpdate()
 end
