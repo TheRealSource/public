@@ -124,7 +124,7 @@ function LazyUpdater:CheckUpdate()
         if self.SERVER_VERSION then
             self.SERVER_VERSION = self.getVersion(self.SERVER_VERSION)
             if self.FILE_VERSION < self.SERVER_VERSION then
-                self.printMessage("New version available: " .. self.SERVER_VERSION)
+                self.printMessage("New version available: v" .. self.SERVER_VERSION)
                 self.printMessage("Updating, please don't press F9")
                 DelayAction(function () DownloadFile(self.UPDATE_URL, self.UPDATE_FILE_PATH, function () self.printMessage("Successfully updated, please reload!") end) end, 2)
             else
@@ -703,5 +703,5 @@ end
 
 -- Update script
 if autoUpdate then
-    LazyUpdater("SourceLib", version, "bitbucket.org", "/TheRealSource/public/raw/master/common/SourceLib.lua", LIB_PATH .. GetCurrentEnv().FILE_NAME):SetSilent(silentUpdate):CheckUpdate()
+    LazyUpdater("SourceLib", version, "bitbucket.org", "/TheRealSource/public/raw/master/common/SourceLib.lua", LIB_PATH .. "SourceLib.lua"):SetSilent(silentUpdate):CheckUpdate()
 end
