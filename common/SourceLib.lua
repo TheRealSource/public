@@ -3,7 +3,7 @@
 local autoUpdate = true
 local silentUpdate = false
 
-local version = 0.6
+local version = 0.7
 
 --[[
 
@@ -166,6 +166,9 @@ end
         Spell:SetHitChance(hitChance)
         Spell:ValidTarget(target)
         Spell:Cast(param1, param2)
+        Spell:AddAutomation(automationId, func)
+        Spell:RemoveAutomation(automationId)
+        Spell:ClearAutomations()
         Spell:IsReady()
         Spell:GetManaUsage()
         Spell:GetCooldown()
@@ -177,6 +180,26 @@ class 'Spell'
 -- Class related constants
 SKILLSHOT_LINEAR   = 0
 SKILLSHOT_CIRCULAR = 1
+
+-- Spell automations
+local __spell_automations = nil
+function __spell_OnTick()
+    for index, spell in ipairs(__spell_automations) do
+        if #spell._automations == 0 then
+            table.remove(__spell_automations, index)
+        else
+            for _, automation in ipairs(spell._automations) do
+                local doCast, param1, param2 = automation.func()
+                if doCast == true then
+                    spell:Cast(param1, param2)
+                end
+            end
+        end
+    end
+end
+
+-- Spell identifier number used for comparing spells
+local spellNum = 1
 
 --[[
     New instance of Spell
@@ -192,6 +215,11 @@ function Spell:__init(spellId, range, packetCast)
     self.spellId = spellId
     self.range = range
     self.packetCast = packetCast or false
+
+    self._automations = {}
+
+    self._spellNum = spellNum
+    spellNum = spellNum + 1
 
 end
 
@@ -318,20 +346,101 @@ function Spell:Cast(param1, param2)
 
 end
 
+--[[
+    Add an automation to the spell to let it cast itself when a certain condition is met
+
+    @param automationId | string/int | The ID of the automation, example "AntiGapCloser"
+    @param func         | function   | Function to be called when checking, should return a bool value indicating if it should be casted and optionally the cast params (ex: target or x and z)
+]]
+function Spell:AddAutomation(automationId, func)
+
+    assert(automationId, "Spell: automationId is invalid!")
+    assert(func and type(func) == "function", "Spell: func is invalid!")
+
+    for index, automation in ipairs(self._automations) do
+        if automation.id == automationId then return end
+    end
+
+    table.insert(self._automations, { id == automationId, func = func })
+
+    if not __spell_automations then
+        __spell_automations = {}
+        AddTickCallback(__spell_OnTick)
+    end
+
+    for index, spell in ipairs(__spell_automations) do
+        if spell == self then return end
+    end
+
+    table.insert(__spell_automations, self)
+
+end
+
+--[[
+    Remove and automation by it's id
+
+    @param automationId | string/int | The ID of the automation, example "AntiGapCloser"
+]]
+function Spell:RemoveAutomation(automationId)
+
+    assert(automationId, "Spell: automationId is invalid!")
+
+    for index, automation in ipairs(self._automations) do
+        if automation.id == automationId then
+            table.remove(self._automations, index)
+            break
+        end
+    end
+
+end
+
+--[[
+    Clear all automations assinged to this spell
+]]
+function Spell:ClearAutomations()
+    self._automations = {}
+end
+
+--[[
+    Get if the spell is ready or not
+
+    @return | bool | Spell state ready or not
+]]
 function Spell:IsReady()
     return player:CanUseSpell(self.spellId) == READY
 end
 
+--[[
+    Get the mana usage of the spell
+
+    @return | float | Mana usage of the spell
+]]
 function Spell:GetManaUsage()
     return player:GetSpellData(self.spellId).mana
 end
 
+--[[
+    Get the CURRENT cooldown of the spell
+
+    @return | float | Current cooldown of the spell
+]]
 function Spell:GetCooldown(current)
     return current and player:GetSpellData(self.spellId).currentCd or player:GetSpellData(self.spellId).totalCooldown
 end
 
+--[[
+    Get the stat points assinged to this spell (level)
+
+    @return | int | Stat points assinged to this spell (level)
+]]
 function Spell:GetLevel()
     return player:GetSpellData(self.spellId).level
+end
+
+function Spell:__eq(other)
+
+    return other and other._spellNum and other._spellNum == self._spellNum or false
+
 end
 
 
@@ -420,8 +529,8 @@ function Circle:__init(position, radius, width, color)
     self.color    = color or { 255, 255, 255, 255 }
     self.quality  = radius / 5
 
-    self.circleId  = "circle" .. circleCount
-    self.circleNum = circleCount
+    self._circleId  = "circle" .. circleCount
+    self._circleNum = circleCount
 
     circleCount = circleCount + 1
 
@@ -432,30 +541,30 @@ function Circle:AddToMenu(menu, paramText, addColor, addWidth, addQuality)
     assert(menu, "Circle: menu is invalid!")
     assert(self.menu == nil, "Circle: Already bound to a menu!")
 
-    menu:addSubMenu(paramText or "Circle " .. self.circleNum, self.circleId)
-    self.menu = menu[self.circleId]
+    menu:addSubMenu(paramText or "Circle " .. self._circleNum, self._circleId)
+    self.menu = menu[self._circleId]
 
     -- Enabled
-    self.menu:addParam(self.circleId .. "enabled", "Enabled", SCRIPT_PARAM_ONOFF, self.enabled)
+    self.menu:addParam(self._circleId .. "enabled", "Enabled", SCRIPT_PARAM_ONOFF, self.enabled)
     self.menuEnabled = menu._param[#menu._param]
 
     if addColor or addWidth or addQuality then
 
         -- Color
         if addColor then
-            self.menu:addParam(self.circleId .. "color", "Color", SCRIPT_PARAM_COLOR, self.color)
+            self.menu:addParam(self._circleId .. "color", "Color", SCRIPT_PARAM_COLOR, self.color)
             self.menuColor = self.menu._param[#self.menu._param]
         end
 
         -- Width
         if addWidth then
-            self.menu:addParam(self.circleId .. "width", "Width", SCRIPT_PARAM_SLICE, self.width, 1, 5)
+            self.menu:addParam(self._circleId .. "width", "Width", SCRIPT_PARAM_SLICE, self.width, 1, 5)
             self.menuWidth = self.menu._param[#self.menu._param]
         end
 
         -- Quality
         if addQuality then
-            self.menu:addParam(self.circleId .. "quality", "Quality", SCRIPT_PARAM_SLICE, self.quality, 10, math.round(self.radius / 5))
+            self.menu:addParam(self._circleId .. "quality", "Quality", SCRIPT_PARAM_SLICE, self.quality, 10, math.round(self.radius / 5))
             self.menuQuality = self.menu._param[#self.menu._param]
         end
 
@@ -552,7 +661,7 @@ function Circle:__eq(other)
     if other.width    == nil or other.width    ~= self.width    then return false end
     ]]
 
-    return other.circleId and other.circleId == self.circleId or false
+    return other._circleId and other._circleId == self._circleId or false
 
 end
 
