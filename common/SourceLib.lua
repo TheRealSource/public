@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.002
+local version = 1.003
 
 --[[
 
@@ -35,6 +35,8 @@ local version = 1.002
         LazyUpdater     -- One of the most basic functions for every script we use
         Spell           -- Spells handled the way they should be handled
         DrawManager     -- Easy drawing of all kind of things, comes along with some other classes such as Circle
+        DamageLib       -- Calculate the damage done do others and even print it on their healthbar
+        STS             -- SimpleTargetSelector is a simple and yet powerful target selector to provide very basic target selecting
 
 ]]
 
@@ -156,13 +158,20 @@ end
         Spell(spellId, range, packetCast)
 
     Members:
-        Spell.range         | float | Range of the spell, please do NOT change this value, use Spell:SetRange() instead
-        Spell.rangeSqr      | float | Squared range of the spell, please do NOT change this value, use Spell:SetRange() instead
-        Spell.packetCast    | bool  | Set packet cast state
-        Spell.minTargetsAoe | int   | Set minimum targets for AOE damage
+        Spell.range          | float  | Range of the spell, please do NOT change this value, use Spell:SetRange() instead
+        Spell.rangeSqr       | float  | Squared range of the spell, please do NOT change this value, use Spell:SetRange() instead
+        Spell.packetCast     | bool   | Set packet cast state
+        -- This only applies for skillshots
+        Spell.sourcePosition | vector | From where the spell is casted, default: player
+        Spell.sourceRange    | vector | From where the range should be calculated, default: player
+        -- This only applies for AOE skillshots
+        Spell.minTargetsAoe  | int    | Set minimum targets for AOE damage
 
     Methods:
         Spell:SetRange(range)
+        Spell:SetSource(source)
+        Spell:SetSourcePosition(source)
+        Spell:SetSourceRange(source)
         Spell:SetSkillshot(VP, skillshotType, width, delay, speed, collision)
         Spell:SetAOE(useAoe, radius, minTargetsAoe)
         Spell:SetHitChance(hitChance)
@@ -175,6 +184,7 @@ end
         Spell:GetManaUsage()
         Spell:GetCooldown()
         Spell:GetLevel()
+        Spell:GetName()
 
 ]]
 class 'Spell'
@@ -183,11 +193,17 @@ class 'Spell'
 SKILLSHOT_LINEAR   = 0
 SKILLSHOT_CIRCULAR = 1
 
+-- DIfferent SpellStates returned when Spell:Cast() is called
 SPELLSTATE_TRIGGERED          = 0
 SPELLSTATE_OUT_OF_RANGE       = 1
 SPELLSTATE_LOWER_HITCHANCE    = 2
 SPELLSTATE_COLLISION          = 3
 SPELLSTATE_NOT_ENOUGH_TARGETS = 4
+SPELLSTATE_NOT_DASHING        = 5
+SPELLSTATE_DASHING_CANT_HIT   = 6
+SPELLSTATE_NOT_IMMOBILE       = 7
+SPELLSTATE_INVALID_TARGET     = 8
+SPELLSTATE_NOT_TRIGGERED      = 9
 
 -- Spell automations
 local __spell_automations = nil
@@ -214,7 +230,7 @@ local spellNum = 1
 
     @param spellId    | int   | Spell ID (_Q, _W, _E, _R)
     @param range      | float | Range of the spell
-    @param packetCast | bool  | State of packet casting
+    @param packetCast | bool  | (optional) Enable packet casting
 ]]
 function Spell:__init(spellId, range, packetCast)
 
@@ -249,6 +265,55 @@ function Spell:SetRange(range)
 end
 
 --[[
+    Update both the sourcePosition and sourceRange from where everything will be calculated
+
+    @param source | Cunit | Source position, for example player
+    @return       | class | The current instance
+]]
+function Spell:SetSource(source)
+
+    assert(source, "Spell: source can't be nil!")
+
+    self.sourcePosition = source
+    self.sourceRange    = source
+
+    return self
+
+end
+
+--[[
+    Update the source posotion from where the spell will be shot
+
+    @param source | Cunit | Source position from where the spell will be shot, player by default
+    @ return      | class | The current instance
+]]
+function Spell:SetSourcePosition(source)
+
+    assert(source, "Spell: source can't be nil!")
+
+    self.sourcePosition = source
+
+    return self
+
+end
+
+--[[
+    Update the source unit from where the range will be calculated
+
+    @param source | Cunit | Source object unit from where the range should be calculed
+    @return       | class | The current instance
+]]
+function Spell:SetSourceRange(source)
+
+    assert(source, "Spell: source can't be nil!")
+
+    self.sourceRange = source
+
+    return self
+
+end
+
+--[[
     Define this spell as skillshot (can't be reversed)
 
     @param VP            | class | Instance of VPrediction
@@ -269,6 +334,8 @@ function Spell:SetSkillshot(VP, skillshotType, width, delay, speed, collision)
     self.delay = delay or 0
     self.speed = speed
     self.collision = collision
+
+    self:SetSource(player)
 
     if not self.hitChance then self.hitChance = 2 end
 
@@ -321,30 +388,102 @@ function Spell:ValidTarget(target, range)
 end
 
 --[[
+    Tries to cast the spell when the target is dashing
+
+    @param target | Cunit | Dashing target to attack
+    @param return | int   | SpellState of the current spell
+]]
+function Spell:CastIfDashing(target)
+
+    -- Don't calculate stuff when target is invalid
+    if not ValidTarget(target) then return SPELLSTATE_INVALID_TARGET end
+
+    if self.skillshotType ~= nil then
+        local isDashing, canHit, position = self.VP:IsDashing(target, self.delay + 0.07 + GetLatency() / 2000, self.width, self.range, self.speed, self.sourcePosition)
+
+        -- Out of range
+        if self.rangeSqr < GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
+
+        if isDashing and canHit then
+
+            -- Collision
+            if not self.collision or self.collision and not self.VP:CheckMinionCollision(target, position, self.delay + 0.07 + GetLatency() / 2000, self.width, self.range, self.speed, self.sourcePosition, false, true) then
+                return self:__CastSpell(self.spellId, position.x, position.z)
+            else
+                return SPELLSTATE_COLLISION
+            end
+
+        elseif not isDashing then return SPELLSTATE_NOT_DASHING
+        else return SPELLSTATE_DASHING_CANT_HIT end
+    end
+
+    return SPELLSTATE_NOT_TRIGGERED
+
+end
+
+--[[
+    Tries to cast the spell when the target is immobile
+
+    @param target | Cunit | Immobile target to attack
+    @param return | int   | SpellState of the current spell
+]]
+function Spell:CastIfImmobile(target)
+
+    -- Don't calculate stuff when target is invalid
+    if not ValidTarget(target) then return SPELLSTATE_INVALID_TARGET end
+
+    if self.skillshotType ~= nil then
+        local isImmobile, position = self.VP:IsImmobile(target, self.delay + 0.07 + GetLatency() / 2000, self.width, self.range, self.speed, self.sourcePosition)
+
+        -- Out of range
+        if self.rangeSqr < GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
+
+        if isImmobile then
+
+            -- Collision
+            if not self.collision or self.collision and not self.VP:CheckMinionCollision(target, position, self.delay + 0.07 + GetLatency() / 2000, self.width, self.range, self.speed, self.sourcePosition, false, true) then
+                return self:__CastSpell(position.x, position.z)
+            else
+                return SPELLSTATE_COLLISION
+            end
+
+        else return SPELLSTATE_NOT_IMMOBILE end
+    end
+
+    return SPELLSTATE_NOT_TRIGGERED
+
+end
+
+--[[
     Cast the spell, respecting previously made decisions about skillshots and AOE stuff
 
     @param param1 | userdata/float | When param2 is nil then this can be the target object, otherwise this is the X coordinate of the skillshot position
     @param param2 | float          | Z coordinate of the skillshot position
+    @param return | int            | SpellState of the current spell
 ]]
 function Spell:Cast(param1, param2)
 
     if self.skillshotType ~= nil and param1 ~= nil and param2 == nil then
 
         -- Don't calculate stuff when target is invalid
-        if not ValidTarget(param1) then return end
+        if not ValidTarget(param1) then return SPELLSTATE_INVALID_TARGET end
 
-        local castPosition, hitChance, nTargets
+        local castPosition, hitChance, position, nTargets
         if self.skillshotType == SKILLSHOT_LINEAR then
             if self.useAoe then
-                castPosition, hitChance, nTargets = self.VP:GetLineAOECastPosition(param1, self.delay, self.radius, self.range, self.speed, player)
+                castPosition, hitChance, nTargets = self.VP:GetLineAOECastPosition(param1, self.delay, self.radius, self.range, self.speed, self.sourcePosition)
             else
-                castPosition, hitChance = self.VP:GetLineCastPosition(param1, self.delay, self.width, self.range, self.speed, player, self.collision)
+                castPosition, hitChance, position = self.VP:GetLineCastPosition(param1, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
+                -- Out of range
+                if self.rangeSqr < GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
             end
         elseif self.skillshotType == SKILLSHOT_CIRCULAR then
             if self.useAoe then
-                castPosition, hitChance, nTargets = self.VP:GetCircularAOECastPosition(param1, self.delay, self.radius, self.range, self.speed, player)
+                castPosition, hitChance, nTargets = self.VP:GetCircularAOECastPosition(param1, self.delay, self.radius, self.range, self.speed, self.sourcePosition)
             else
-                castPosition, hitChance = self.VP:GetCircularCastPosition(param1, self.delay, self.width, self.range, self.speed, player, self.collision)
+                castPosition, hitChance, position = self.VP:GetCircularCastPosition(param1, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
+                -- Out of range
+                if math.pow(self.range + self.width + self.VP:GetHitBox(param1), 2) < GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
             end
         end
 
@@ -358,11 +497,21 @@ function Spell:Cast(param1, param2)
         if hitChance and hitChance < self.hitChance then return SPELLSTATE_LOWER_HITCHANCE end
 
         -- Out of range
-        if self.rangeSqr < GetDistanceSqr(castPosition) then return SPELLSTATE_OUT_OF_RANGE end
+        if self.rangeSqr < GetDistanceSqr(self.sourceRange, castPosition) then return SPELLSTATE_OUT_OF_RANGE end
 
         param1 = castPosition.x
         param2 = castPosition.z
     end
+
+    -- Cast the spell
+    return self:__Cast(param1, param2)
+
+end
+
+--[[
+    Internal function, do not use this!
+]]
+function Spell:__Cast(param1, param2)
 
     if self.packetCast then
         if param1 ~= nil and param2 ~= nil then
@@ -469,6 +618,15 @@ end
 ]]
 function Spell:GetLevel()
     return player:GetSpellData(self.spellId).level
+end
+
+--[[
+    Get the name of the spell
+
+    @return | string | Name of the the spell
+]]
+function Spell:GetName()
+    return player:GetSpellData(self.spellId).name
 end
 
 function Spell:__eq(other)
@@ -803,6 +961,362 @@ function Circle:__eq(other)
     return other._circleId and other._circleId == self._circleId or false
 end
 
+--[[
+
+'||''|.                                              '||'       ||  '||      
+ ||   ||   ....   .. .. ..    ....     ... .   ....   ||       ...   || ...  
+ ||    || '' .||   || || ||  '' .||   || ||  .|...||  ||        ||   ||'  || 
+ ||    || .|' ||   || || ||  .|' ||    |''   ||       ||        ||   ||    | 
+.||...|'  '|..'|' .|| || ||. '|..'|'  '||||.  '|...' .||.....| .||.  '|...'  
+                                     .|....'                                 
+
+    DamageLib - Holy cow, so precise!
+
+    Functions:
+        DamageLib(source)
+
+    Members:
+        DamageLib.source | Cunit | Source unit for which the damage should be calculated
+
+    Methods:
+        DamageLib:RegisterDamageSource(spellId, damagetype, basedamage, perlevel, scalingtype, scalingstat, percentscaling, condition, extra)
+        DamageLib:GetScalingDamage(target, scalingtype, scalingstat, percentscaling)
+        DamageLib:GetTrueDamage(target, spell, damagetype, basedamage, perlevel, scalingtype, scalingstat, percentscaling, condition, extra)
+        DamageLib:CalcSpellDamage(target, spell)
+        DamageLib:CalcComboDamage(target, combo)
+        DamageLib:IsKillable(target, combo)
+        DamageLib:AddToMenu(menu, combo)
+
+    -Available spells by default (not added yet):
+        _AA: Returns the auto-attack damage.
+        _IGNITE: Returns the ignite damage.
+        _ITEMS: Returns the damage dealt by all the items actives.
+
+    -Damage types:
+        _MAGIC
+        _PHYSICAL
+        _TRUE
+
+    -Scaling types: _AP, _AD, _BONUS_AD, _HEALTH, _ARMOR, _MR, _MAXHEALTH, _MAXMANA 
+]]
+class 'DamageLib'
+
+--Damage types
+_MAGIC, _PHYSICAL, _TRUE = 0, 1, 2
+
+--Percentage scale type's 
+_AP, _AD, _BONUS_AD, _HEALTH, _ARMOR, _MR, _MAXHEALTH, _MAXMANA = 1, 2, 3, 4, 5, 6, 7, 8
+
+--[[
+    New instance of DamageLib
+
+    @param source | Cunit | Source unit (attacker, player by default)
+]]
+function DamageLib:__init(source)
+
+    self.sources = {}
+    self.source = source or player
+
+    -- Most common damage sources
+    self:RegisterDamageSource(_IGNITE, _TRUE, 0, 0, _TRUE, _AP, 0, function() return _IGNITE and (self.source:CanUseSpell(_IGNITE) == READY) end, function() return (50 + 20 * self.source.level) end)
+    self:RegisterDamageSource(_DFG, _MAGIC, 0, 0, _MAGIC, _AP, 0, function() return GetInventorySlotItem(_DFG) and (self.source:CanUseSpell(GetInventorySlotItem(_DFG)) == READY) end, function(target) return 0.15 * target.maxHealth end)
+    self:RegisterDamageSource(_BOTRK, _MAGIC, 0, 0, _MAGIC, _AP, 0, function() return GetInventorySlotItem(_BOTRK) and (self.source:CanUseSpell(GetInventorySlotItem(_BOTRK)) == READY) end, function(target) return 0.15 * target.maxHealth end)
+    self:RegisterDamageSource(_AA, _PHYSICAL, 0, 0, _PHYSICAL, _AD, 1)
+
+end
+
+--[[
+    Register a new spell
+
+    @param spellId        | int      | (unique) Spell id to add.
+    
+    @param damagetype     | int      | The type(s) of the base and perlevel damage (_MAGIC, _PHYSICAL, _TRUE).
+    @param basedamage     | int      | Base damage(s) of the spell.
+    @param perlevel       | int      | Damage(s) scaling per level.
+
+    @param scalingtype    | int      | Type(s) of the percentage scale (_MAGIC, _PHYSICAL, _TRUE).
+    @param scalingstat    | int      | Stat(s) that the damage scales with.
+    @param percentscaling | int      | Percentage(s) the stat scales with.
+
+    @param condition      | function | (optional) A function that returns true / false depending if the damage will be taken into account or not, the target is passed as param.
+    @param extra          | function | (optional) A function returning extra damage, the target is passed as param.
+    
+    -Example Spells: 
+    Teemo Q:  80 / 125 / 170 / 215 / 260 (+ 80% AP) (MAGIC)
+    DamageLib:RegisterDamageSource(_Q, _MAGIC, 35, 45, _MAGIC, _AP, 0.8, function() return (player:CanUseSpell(_Q) == READY) end)
+
+    Akalis E: 30 / 55 / 80 / 105 / 130 (+ 30% AP) (+ 60% AD) (PHYSICAL) 
+    DamageLib:RegisterDamageSource(_E, _PHYSICAL, 5, 25, {_PHYSICAL,_PHYSICAL}, {_AP, _AD}, {0.3, 0.6}, function() return (player:GetSpellData(_Q).currentCd < 2) or (player:CanUseSpell(_Q) == READY) end)
+
+    * damagetype, basedamage, perlevel and scalingtype, scalingstat, percentscaling can be tables if there are 2 or more damage types.
+]]
+function DamageLib:RegisterDamageSource(spellId, damagetype, basedamage, perlevel, scalingtype, scalingstat, percentscaling, condition, extra)
+
+    condition = condition or function() return true end
+    if spellId then
+        self.sources[spellId] = {damagetype = damagetype, basedamage = basedamage, perlevel = perlevel, condition = condition, extra = extra, scalingtype = scalingtype, percentscaling = percentscaling, scalingstat = scalingstat}
+    end
+
+end
+
+function DamageLib:GetScalingDamage(target, scalingtype, scalingstat, percentscaling)
+
+    local amount = 0
+
+    if scalingstat == _AP then
+        amount = percentscaling * self.source.ap
+    elseif scalingstat == _AD then
+        amount = percentscaling * self.source.totalDamage
+    elseif scalingstat == _BONUS_AD then
+        amount = percentscaling * self.source.addDamage
+    elseif scalingstat == _ARMOR then
+        amount = percentscaling * self.source.armor
+    elseif scalingstat == _MR then
+        amount = percentscaling * self.source.magicArmor
+    elseif scalingstat == _MAXHEALTH then
+        amount = percentscaling * self.source.maxHeath
+    elseif scalingstat == _MAXMANA then
+        amount = percentscaling * self.source.maxMana
+    end
+
+    if scalingtype == _MAGIC then
+        return self.source:CalcMagicDamage(target, amount)
+    end
+    if scalingtype == _PHYSICAL then
+        return self.source:CalcDamage(target, amount)
+    end
+    if scalingtype == _TRUE then
+        return amount
+    end
+
+    return 0
+
+end
+
+function DamageLib:GetTrueDamage(target, spell, damagetype, basedamage, perlevel, scalingtype, scalingstat, percentscaling, condition, extra)
+
+    basedamage = basedamage or 0
+    perlevel = perlevel or 0
+    condition = condition(target)
+    scalingtype = scalingtype or 0
+    scalingstat = scalingstat or _AP
+    percentscaling = percentscaling or 0
+    extra = extra or function() return 0 end
+    local ScalingDamage = 0
+
+    if not condition then return 0 end
+
+    if type(scalingtype) == "number" then
+        ScalingDamage = ScalingDamage + self:GetScalingDamage(target, scalingtype, scalingstat, percentscaling)
+    elseif type(scalingtype) == "table" then
+        for i, v in ipairs(scalingtype) do
+            ScalingDamage = ScalingDamage + self:GetScalingDamage(target, scalingtype[i], scalingstat[i], percentscaling[i])
+        end
+    end
+
+    if damagetype == _MAGIC then
+        return self.source:CalcMagicDamage(target, basedamage + perlevel * self.source:GetSpellData(spell).level + extra(target)) + ScalingDamage
+    end
+    if damagetype == _PHYSICAL then
+        return self.source:CalcDamage(target, basedamage + perlevel * self.source:GetSpellData(spell).level + extra(target)) + ScalingDamage
+    end
+    if damagetype == _TRUE then
+        return basedamage + perlevel * self.source:GetSpellData(spell).level + extra(target) + ScalingDamage
+    end
+
+    return 0
+
+end
+
+function DamageLib:CalcSpellDamage(target, spell)
+
+    if not spell then return 0 end
+    local spelldata = self.sources[spell]
+    local result = 0
+    assert(spelldata, "DamageLib: The spell has to be added first!")
+
+    local _type = type(spelldata.damagetype)
+
+    if _type == "number" then
+        result = self:GetTrueDamage(target, spell, spelldata.damagetype, spelldata.basedamage, spelldata.perlevel, spelldata.scalingtype, spelldata.scalingstat, spelldata.percentscaling, spelldata.condition, spelldata.extra)
+    elseif _type == "table" then
+        for i = 1, #spelldata.damagetype, 1 do                 
+            result = result + self:GetTrueDamage(target, spell, spelldata.damagetype[i], spelldata.basedamage[i], spelldata.perlevel[i], 0, 0, 0, spelldata.condition)
+        end
+        result = result + self:GetTrueDamage(target, spell, 0, 0, 0, spelldata.scalingtype, spelldata.scalingstat, spelldata.percentscaling, spelldata.condition, spelldata.extra)
+    end
+
+    return result
+
+end
+
+function DamageLib:CalcComboDamage(target, combo)
+
+    local totaldamage = 0
+    for i, spell in ipairs(combo) do
+        totaldamage = totaldamage + self:CalcSpellDamage(target, spell)
+    end
+
+    return totaldamage
+
+end
+
+--[[
+    Returns if the unit will die after taking the combo damage.
+
+    @param target | Cunit | Target.
+    @param combo  | table | The combo table.
+]]
+function DamageLib:IsKillable(target, combo)
+    return target.health <= self:CalcComboDamage(target, combo)
+end
+
+--[[
+    Adds the Health bar indicators to the menu.
+
+    @param menu  | scriptConfig | AllClass menu or submenu instance.
+    @param combo | table        | The combo table.
+]]
+function DamageLib:AddToMenu(menu, combo)
+
+    self.menu = menu
+    self.combo = combo
+    self.ticklimit = 5 --5 ticks per seccond
+    self.barwidth = 100
+    self.cachedDamage = {}
+    menu:addParam("DrawPredictedHealth", "Draw damage after combo.", SCRIPT_PARAM_ONOFF , true)
+    self.enabled = menu.DrawPredictedHealth
+    AddTickCallback(function() self:OnTick() end)
+    AddDrawCallback(function() self:OnDraw() end)
+
+end
+
+function DamageLib:OnTick()
+
+    if not self.menu["DrawPredictedHealth"] then return end
+    self.lasttick = self.lasttick or 0
+    if os.clock() - self.lasttick > 1 / self.ticklimit then
+        self.lasttick = os.clock()
+        for i, enemy in ipairs(GetEnemyHeroes()) do
+            if ValidTarget(enemy) then
+                self.cachedDamage[enemy.hash] = self:CalcComboDamage(enemy, self.combo)
+            end
+        end
+    end
+
+end
+
+function DamageLib:OnDraw()
+
+    if not self.menu["DrawPredictedHealth"] then return end
+    for i, enemy in ipairs(GetEnemyHeroes()) do
+        if ValidTarget(enemy) then
+            self:DrawIndicator(enemy)
+        end
+    end
+
+end
+
+function DamageLib:DrawIndicator(enemy)
+
+    local damage = self.cachedDamage[enemy.hash] or 0
+    local SPos, EPos = GetEnemyHPBarPos(enemy)
+    local barwidth = EPos.x - SPos.x
+    local Position = SPos.x + math.max(0, (enemy.health - damage) / enemy.maxHealth) * barwidth
+
+    DrawText("|", 16, math.floor(Position), math.floor(SPos.y + 8), ARGB(255,0,255,0))
+    DrawText("HP: "..math.floor(enemy.health - damage), 13, math.floor(SPos.x), math.floor(SPos.y), (enemy.health - damage) > 0 and ARGB(255, 0, 255, 0) or  ARGB(255, 255, 0, 0))
+
+end
+
+
+--[[
+
+ .|'''.|  |''||''|  .|'''.|  
+ ||..  '     ||     ||..  '  
+  ''|||.     ||      ''|||.  
+.     '||    ||    .     '|| 
+|'....|'    .||.   |'....|'  
+
+    Simple Target Selector (STS) - Why using the regular one when you can have it even more simple.
+
+]]
+class 'SimpleTS'
+
+function STS_GET_PRIORITY(target)
+    if not STS_MENU or not STS_MENU.STS[target.charName] then
+        return 1
+    else
+        return STS_MENU.STS[target.charName]
+    end
+end
+
+STS_MENU = nil
+STS_NEARMOUSE                     = {id = 1, name = "Near mouse", sortfunc = function(a, b) return GetDistanceSqr(mousePos, a) < GetDistanceSqr(mousePos, b) end}
+STS_LESS_CAST_MAGIC               = {id = 2, name = "Less cast (magic)", sortfunc = function(a, b) return (player:CalcMagicDamage(a, 100) / a.health) > (player:CalcMagicDamage(b, 100) / b.health) end}
+STS_LESS_CAST_PHYSICAL            = {id = 3, name = "Less cast (physical)", sortfunc = function(a, b) return (player:CalcDamage(a, 100) / a.health) > (player:CalcDamage(b, 100) / b.health) end}
+STS_PRIORITY_LESS_CAST_MAGIC      = {id = 4, name = "Less cast priority (magic)", sortfunc = function(a, b) return STS_GET_PRIORITY(a) * (player:CalcMagicDamage(a, 100) / a.health) > STS_GET_PRIORITY(b) * (player:CalcMagicDamage(b, 100) / b.health) end}
+STS_PRIORITY_LESS_CAST_PHYSICAL   = {id = 5, name = "Less cast priority (physical)", sortfunc = function(a, b) return STS_GET_PRIORITY(a) * (player:CalcDamage(a, 100) / a.health) > STS_GET_PRIORITY(b) * (player:CalcDamage(b, 100) / b.health) end}
+STS_AVAILABLE_MODES = {STS_NEARMOUSE, STS_LESS_CAST_MAGIC, STS_LESS_CAST_PHYSICAL, STS_PRIORITY_LESS_CAST_MAGIC, STS_PRIORITY_LESS_CAST_PHYSICAL}
+
+function SimpleTS:__init(mode)
+    self.mode = mode and mode or STS_LESS_CAST_PHYSICAL
+end
+
+function SimpleTS:IsValid(target, range, selected)
+    if ValidTarget(target) and GetDistanceSqr(target) <= range then
+        if selected or (not (HasBuff(target, "UndyingRage") and (target.health == 1)) and not HasBuff(target, "JudicatorIntervention")) then
+            return true
+        end
+    end
+end
+
+function SimpleTS:AddToMenu(menu)
+    self.menu = menu
+    self.menu:addSubMenu("Target Selector", "STS")
+    for i, target in ipairs(GetEnemyHeroes()) do
+        if not self.menu.STS[target.charName] then --avoid errors in one for all
+            self.menu.STS:addParam(target.charName, target.charName, SCRIPT_PARAM_SLICE, 1, 1, 5, 1)
+        end
+    end
+    self.menu.STS:addParam("Info", "Info", SCRIPT_PARAM_INFO, "5 Highest priority")
+
+    local modelist = {}
+    for i, mode in ipairs(STS_AVAILABLE_MODES) do
+        table.insert(modelist, mode.name)
+    end
+
+    self.menu:addParam("mode", "Targetting mode: ", SCRIPT_PARAM_LIST, 1, modelist)
+    self.menu["mode"] = self.mode.id
+
+    self.menu:addParam("Selected", "Focus selected target", SCRIPT_PARAM_ONOFF, true)
+
+    STS_MENU = self.menu
+end
+
+function SimpleTS:GetTarget(range, n, forcemode)
+    assert(range, "SimpleTS: range can't be nil")
+    range = range * range
+    local PosibleTargets = {}
+    local selected = GetTarget()
+
+    if self.menu then
+        self.mode = STS_AVAILABLE_MODES[self.menu.mode]
+        if self.menu.Selected and selected and selected.type == player.type and self:IsValid(selected, range, true) then
+            return selected
+        end
+    end
+
+    for i, enemy in ipairs(GetEnemyHeroes()) do
+        if self:IsValid(enemy, range) then
+            table.insert(PosibleTargets, enemy)
+        end
+    end
+    table.sort(PosibleTargets, forcemode and forcemode.sortfunc or self.mode.sortfunc)
+
+    return PosibleTargets[n and n or 1]
+end
+
 
 --[[
 
@@ -815,7 +1329,93 @@ end
     Util - Just utils.
 ]]
 
-function spellToString(id)
+AllClassGetDistanceSqr = GetDistanceSqr
+function GetDistanceSqr(p1, p2)
+
+    if p2 == nil then p2 = player end
+    if p1 and p1.visionPos then p1 = p1.visionPos end
+    if p2 and p2.visionPos then p2 = p2.visionPos end
+    return AllClassGetDistanceSqr(p1, p2)
+
+end
+
+function HasBuff(unit, buffname)
+
+    for i = 1, unit.buffCount do
+        local tBuff = unit:getBuff(i)
+        if tBuff.valid and BuffIsValid(tBuff) and tBuff.name == buffname then
+            return true
+        end
+    end
+    return false
+
+end
+
+function GetSummonerSlot(name, unit)
+
+    unit = unit or player
+    if unit:GetSpellData(SUMMONER_1).name == name then return SUMMONER_1 end
+    if unit:GetSpellData(SUMMONER_2).name == name then return SUMMONER_2 end
+
+end
+
+function GetEnemyHPBarPos(enemy)
+
+    local barPos = GetUnitHPBarPos(enemy)
+    local barPosOffset = GetUnitHPBarOffset(enemy)
+    local barOffset = Point(enemy.barData.PercentageOffset.x, enemy.barData.PercentageOffset.y)
+    local barPosPercentageOffset = Point(enemy.barData.PercentageOffset.x, enemy.barData.PercentageOffset.y)
+
+    local BarPosOffsetX = 169
+    local BarPosOffsetY = 47
+    local CorrectionX = -63
+    local CorrectionY = -27
+
+    barPos.x = barPos.x + (barPosOffset.x - 0.5 + barPosPercentageOffset.x) * BarPosOffsetX + CorrectionX
+    barPos.y = barPos.y + (barPosOffset.y - 0.5 + barPosPercentageOffset.y) * BarPosOffsetY + CorrectionY 
+
+    local StartPos = Point(barPos.x, barPos.y)
+    local EndPos = Point(barPos.x + 103, barPos.y)
+
+    return Point(StartPos.x, StartPos.y), Point(EndPos.x, EndPos.y)
+
+end
+
+function CountObjectsNearPos(pos, range, radius, objects)
+
+    local n = 0
+    for i, object in ipairs(objects) do
+        if ValidTarget(object, range + radius) and GetDistanceSqr(pos, object) <= radius * radius then
+            n = n + 1
+        end
+    end
+
+    return n
+
+end
+
+function GetBestCircularFarmPosition(range, radius, objects)
+
+    local BestPos 
+    local BestHit = 0
+    for i, object in ipairs(objects) do
+        if ValidTarget(object, range) then
+            local hit = CountObjectsNearPos(object.visionPos, range, radius, objects)
+            if hit > BestHit then
+                BestHit = hit
+                BestPos = Vector(object)
+                if BestHit == #objects then
+                    break
+                end
+            end
+        end
+    end
+
+    return BestPos, BestHit
+
+end
+
+function SpellToString(id)
 
     if id == _Q then return "Q" end
     if id == _W then return "W" end
@@ -831,7 +1431,7 @@ function TARGB(colorTable)
 
 end
 
-function pingClient(x, y, pingType)
+function PingClient(x, y, pingType)
     Packet("R_PING", {x = y, y = y, type = pingType and pingType or PING_FALLBACK}):receive()
 end
 
@@ -839,7 +1439,7 @@ local __util_autoAttack   = { "frostarrow" }
 local __util_noAutoAttack = { "shyvanadoubleattackdragon",
                               "shyvanadoubleattack",
                               "monkeykingdoubleattack" }
-function isAASpell(spell)
+function IsAASpell(spell)
 
     if not spell or not spell.name then return end
 
@@ -864,7 +1464,7 @@ function isAASpell(spell)
 end
 
 -- Source: http://lua-users.org/wiki/CopyTable
-function tableDeepCopy(orig)
+function TableDeepCopy(orig)
 
     local orig_type = type(orig)
     local copy
@@ -896,3 +1496,21 @@ end
 if autoUpdate then
     LazyUpdater("SourceLib", version, "bitbucket.org", "/TheRealSource/public/raw/master/common/SourceLib.lua", LIB_PATH .. "SourceLib.lua"):SetSilent(silentUpdate):CheckUpdate()
 end
+
+-- Set enemy bar data
+for i, enemy in ipairs(GetEnemyHeroes()) do
+    enemy.barData = GetEnemyBarData()
+end
+
+--Summoner spells
+_IGNITE  = GetSummonerSlot("SummonerDot")
+_FLASH   = GetSummonerSlot("SummonerFlash")
+_EXHAUST = GetSummonerSlot("SummonerExhaust")
+
+--Items
+_DFG = 3128
+_BOTRK = 3153
+
+--Others
+_AA = 10000
+_PASIVE = 10001
