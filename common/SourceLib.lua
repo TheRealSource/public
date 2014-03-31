@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.001
+local version = 1.002
 
 --[[
 
@@ -156,11 +156,13 @@ end
         Spell(spellId, range, packetCast)
 
     Members:
-        Spell.range         | float | Range of the spell
+        Spell.range         | float | Range of the spell, please do NOT change this value, use Spell:SetRange() instead
+        Spell.rangeSqr      | float | Squared range of the spell, please do NOT change this value, use Spell:SetRange() instead
         Spell.packetCast    | bool  | Set packet cast state
         Spell.minTargetsAoe | int   | Set minimum targets for AOE damage
 
     Methods:
+        Spell:SetRange(range)
         Spell:SetSkillshot(VP, skillshotType, width, delay, speed, collision)
         Spell:SetAOE(useAoe, radius, minTargetsAoe)
         Spell:SetHitChance(hitChance)
@@ -180,6 +182,12 @@ class 'Spell'
 -- Class related constants
 SKILLSHOT_LINEAR   = 0
 SKILLSHOT_CIRCULAR = 1
+
+SPELLSTATE_TRIGGERED          = 0
+SPELLSTATE_OUT_OF_RANGE       = 1
+SPELLSTATE_LOWER_HITCHANCE    = 2
+SPELLSTATE_COLLISION          = 3
+SPELLSTATE_NOT_ENOUGH_TARGETS = 4
 
 -- Spell automations
 local __spell_automations = nil
@@ -213,13 +221,30 @@ function Spell:__init(spellId, range, packetCast)
     assert(spellId ~= nil and range ~= nil and type(spellId) == "number" and type(range) == "number", "Spell: Can't initialize Spell without valid arguments.")
 
     self.spellId = spellId
-    self.range = range
+    self:SetRange(range)
     self.packetCast = packetCast or false
 
     self._automations = {}
 
     self._spellNum = spellNum
     spellNum = spellNum + 1
+
+end
+
+--[[
+    Update the spell range with the new given value
+
+    @param range | float | Range of the spell
+    @return      | class | The current instance
+]]
+function Spell:SetRange(range)
+
+    assert(range and type(range) == "number", "Spell: range is invalid")
+
+    self.range = range
+    self.rangeSqr = math.pow(range, 2)
+
+    return self
 
 end
 
@@ -262,7 +287,7 @@ end
 function Spell:SetAOE(useAoe, radius, minTargetsAoe)
 
     self.useAoe = useAoe or false
-    self.radius = radius or 0
+    self.radius = radius or self.width
     self.minTargetsAoe = minTargetsAoe or 0
 
     return self
@@ -304,6 +329,10 @@ end
 function Spell:Cast(param1, param2)
 
     if self.skillshotType ~= nil and param1 ~= nil and param2 == nil then
+
+        -- Don't calculate stuff when target is invalid
+        if not ValidTarget(param1) then return end
+
         local castPosition, hitChance, nTargets
         if self.skillshotType == SKILLSHOT_LINEAR then
             if self.useAoe then
@@ -320,13 +349,16 @@ function Spell:Cast(param1, param2)
         end
 
         -- AOE not enough targets
-        if nTargets and nTargets < self.minTargetsAoe then return end
+        if nTargets and nTargets < self.minTargetsAoe then return SPELLSTATE_NOT_ENOUGH_TARGETS end
+
+        -- Collision detected
+        if hitChance == -1 then return SPELLSTATE_COLLISION end
 
         -- Hitchance too low
-        if hitChance and hitChance < self.hitChance then return end
+        if hitChance and hitChance < self.hitChance then return SPELLSTATE_LOWER_HITCHANCE end
 
         -- Out of range
-        if not self:ValidTarget(param1, GetDistance(castPosition)) then return end
+        if self.rangeSqr < GetDistanceSqr(castPosition) then return SPELLSTATE_OUT_OF_RANGE end
 
         param1 = castPosition.x
         param2 = castPosition.z
@@ -343,6 +375,8 @@ function Spell:Cast(param1, param2)
     else
         CastSpell(self.spellId, param1, param2)
     end
+
+    return SPELLSTATE_TRIGGERED
 
 end
 
@@ -766,17 +800,7 @@ function Circle:Draw()
 end
 
 function Circle:__eq(other)
-
-    --[[
-    if other.enabled  == nil or other.enabled  ~= self.enabled  then return false end
-    if other.position == nil or other.position ~= self.position then return false end
-    if other.radius   == nil or other.radius   ~= self.radius   then return false end
-    if other.color    == nil or other.color    ~= self.color    then return false end
-    if other.width    == nil or other.width    ~= self.width    then return false end
-    ]]
-
     return other._circleId and other._circleId == self._circleId or false
-
 end
 
 
