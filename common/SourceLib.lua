@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.8
+local version = 1.001
 
 --[[
 
@@ -48,13 +48,13 @@ local version = 0.8
                           .. |                ||                                              
                            ''                ''''                                             
 
-    Lazy updater - a simple updater class
+    LazyUpdater - a simple updater class
 
     Introduction:
         Scripts that want to use this class need to have a version field at the beginning of the script, like this:
             local version = YOUR_VERSION (YOUR_VERSION can either be a string a a numeric value!)
         It does not need to be exactly at the beginning, like in this script, but it has to be within the first 100
-        chars of the file, otherwise the webresult won't see the field, as it gathers only about 100 lines
+        chars of the file, otherwise the webresult won't see the field, as it gathers only about 100 chars
 
     Functions:
         LazyUpdater(scriptName, version, hostPath, filePath)
@@ -621,26 +621,30 @@ function Circle:AddToMenu(menu, paramText, addColor, addWidth, addQuality)
     self.menu = menu[self._circleId]
 
     -- Enabled
-    self.menu:addParam(self._circleId .. "enabled", "Enabled", SCRIPT_PARAM_ONOFF, self.enabled)
-    self.menuEnabled = menu._param[#menu._param]
+    local paramId = self._circleId .. "enabled"
+    self.menu:addParam(paramId, "Enabled", SCRIPT_PARAM_ONOFF, self.enabled)
+    self.menuEnabled = self.menu._param[#self.menu._param]
 
     if addColor or addWidth or addQuality then
 
         -- Color
         if addColor then
-            self.menu:addParam(self._circleId .. "color", "Color", SCRIPT_PARAM_COLOR, self.color)
+            paramId = self._circleId .. "color"
+            self.menu:addParam(paramId, "Color", SCRIPT_PARAM_COLOR, self.color)
             self.menuColor = self.menu._param[#self.menu._param]
         end
 
         -- Width
         if addWidth then
-            self.menu:addParam(self._circleId .. "width", "Width", SCRIPT_PARAM_SLICE, self.width, 1, 5)
+            paramId = self._circleId .. "width"
+            self.menu:addParam(paramId, "Width", SCRIPT_PARAM_SLICE, self.width, 1, 5)
             self.menuWidth = self.menu._param[#self.menu._param]
         end
 
         -- Quality
         if addQuality then
-            self.menu:addParam(self._circleId .. "quality", "Quality", SCRIPT_PARAM_SLICE, self.quality, 10, math.round(self.radius / 5))
+            paramId = self._circleId .. "quality"
+            self.menu:addParam(paramId, "Quality", SCRIPT_PARAM_SLICE, math.round(self.quality), 10, math.round(self.radius / 5))
             self.menuQuality = self.menu._param[#self.menu._param]
         end
 
@@ -731,20 +735,20 @@ end
 function Circle:Draw()
 
     -- Don't draw if condition is not met
-    if self.condition and self.condition() == false then return end
+    if self.condition ~= nil and self.condition() == false then return end
 
     -- Menu found
     if self.menu then 
-        if self.menuEnabled then
+        if self.menuEnabled ~= nil then
             if not self.menu[self.menuEnabled.var] then return end
         end
-        if self.menuColor then
+        if self.menuColor ~= nil then
             self.color = self.menu[self.menuColor.var]
         end
-        if self.menuWidth then
+        if self.menuWidth ~= nil then
             self.width = self.menu[self.menuWidth.var]
         end
-        if self.menuQuality then
+        if self.menuQuality ~= nil then
             self.quality = self.menu[self.menuQuality.var]
         end
     end
