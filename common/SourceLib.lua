@@ -399,7 +399,7 @@ function Spell:CastIfDashing(target)
     if not ValidTarget(target) then return SPELLSTATE_INVALID_TARGET end
 
     if self.skillshotType ~= nil then
-        local isDashing, canHit, position = self.VP:IsDashing(target, self.delay + 0.07 + GetLatency() / 2000, self.width, self.range, self.speed, self.sourcePosition)
+        local isDashing, canHit, position = self.VP:IsDashing(target, self.delay + 0.07 + GetLatency() / 2000, self.width, self.speed, self.sourcePosition)
 
         -- Out of range
         if self.rangeSqr < GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
@@ -408,7 +408,7 @@ function Spell:CastIfDashing(target)
 
             -- Collision
             if not self.collision or self.collision and not self.VP:CheckMinionCollision(target, position, self.delay + 0.07 + GetLatency() / 2000, self.width, self.range, self.speed, self.sourcePosition, false, true) then
-                return self:__CastSpell(self.spellId, position.x, position.z)
+                return self:__Cast(self.spellId, position.x, position.z)
             else
                 return SPELLSTATE_COLLISION
             end
@@ -433,7 +433,7 @@ function Spell:CastIfImmobile(target)
     if not ValidTarget(target) then return SPELLSTATE_INVALID_TARGET end
 
     if self.skillshotType ~= nil then
-        local isImmobile, position = self.VP:IsImmobile(target, self.delay + 0.07 + GetLatency() / 2000, self.width, self.range, self.speed, self.sourcePosition)
+        local isImmobile, position = self.VP:IsImmobile(target, self.delay + 0.07 + GetLatency() / 2000, self.width, self.speed, self.sourcePosition)
 
         -- Out of range
         if self.rangeSqr < GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
@@ -441,8 +441,8 @@ function Spell:CastIfImmobile(target)
         if isImmobile then
 
             -- Collision
-            if not self.collision or self.collision and not self.VP:CheckMinionCollision(target, position, self.delay + 0.07 + GetLatency() / 2000, self.width, self.range, self.speed, self.sourcePosition, false, true) then
-                return self:__CastSpell(position.x, position.z)
+            if not self.collision or (self.collision and not self.VP:CheckMinionCollision(target, position, self.delay + 0.07 + GetLatency() / 2000, self.width, self.range, self.speed, self.sourcePosition, false, true)) then
+                return self:__Cast(position.x, position.z)
             else
                 return SPELLSTATE_COLLISION
             end
@@ -522,7 +522,11 @@ function Spell:__Cast(param1, param2)
             Packet("S_CAST", {spellId = self.spellId, toX = player.x, toY = player.z, fromX = player.x, fromY = player.z, targetNetworkId = player.networkID}):send()
         end
     else
-        CastSpell(self.spellId, param1, param2)
+        if param2 ~= nil then
+            CastSpell(self.spellId, param1, param2)
+        else
+            CastSpell(self.spellId, param1)
+        end
     end
 
     return SPELLSTATE_TRIGGERED
@@ -1329,15 +1333,6 @@ end
     Util - Just utils.
 ]]
 
-AllClassGetDistanceSqr = GetDistanceSqr
-function GetDistanceSqr(p1, p2)
-
-    if p2 == nil then p2 = player end
-    if p1 and p1.visionPos then p1 = p1.visionPos end
-    if p2 and p2.visionPos then p2 = p2.visionPos end
-    return AllClassGetDistanceSqr(p1, p2)
-
-end
 
 function HasBuff(unit, buffname)
 
