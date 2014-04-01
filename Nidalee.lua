@@ -1,3 +1,30 @@
+-- Change autoUpdate to false if you wish to not receive auto updates.
+-- Change silentUpdate to true if you wish not to receive any message regarding updates
+local autoUpdate   = true
+local silentUpdate = false
+
+local version = 0.001
+
+--[[
+
+    Nidalee - a champoin script by team TheSource
+    Copyright (C) 2014  Team TheSource
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see http://www.gnu.org/licenses/.
+
+]]
+
 if player.charName ~= "Nidalee" then return end
 
 -- Globals
@@ -23,6 +50,9 @@ function OnLoad()
     require "SourceLib"
     require "VPrediction"
     require "SOW"
+
+    -- AutoUpdate
+    if autoUpdate then LazyUpdater("[Source] " .. player.charName, version, "bitbucket.org", "/TheRealSource/public/raw/master/Nidalee.lua", SCRIPT_PATH .. GetCurrentEnv().FILE_NAME):SetSilent(silentUpdate):CheckUpdate() end
 
     -- Initialize classes
     drawManager = DrawManager()
