@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.004
+local version = 1.005
 
 --[[
 
@@ -66,7 +66,7 @@ local version = 1.004
 
     Methods:
         LazyUpdater:SetSilent(silent)
-        LazuUpdater:CheckUpdate()
+        LazyUpdater:CheckUpdate()
 
 ]]
 class 'LazyUpdater'
@@ -193,7 +193,7 @@ class 'Spell'
 SKILLSHOT_LINEAR   = 0
 SKILLSHOT_CIRCULAR = 1
 
--- DIfferent SpellStates returned when Spell:Cast() is called
+-- Different SpellStates returned when Spell:Cast() is called
 SPELLSTATE_TRIGGERED          = 0
 SPELLSTATE_OUT_OF_RANGE       = 1
 SPELLSTATE_LOWER_HITCHANCE    = 2
@@ -522,10 +522,12 @@ function Spell:__Cast(param1, param2)
             Packet("S_CAST", {spellId = self.spellId, toX = player.x, toY = player.z, fromX = player.x, fromY = player.z, targetNetworkId = player.networkID}):send()
         end
     else
-        if param2 ~= nil then
+        if param1 ~= nil and param2 ~= nil then
             CastSpell(self.spellId, param1, param2)
-        else
+        elseif param1 ~= nil then
             CastSpell(self.spellId, param1)
+        else
+            CastSpell(self.spellId)
         end
     end
 
