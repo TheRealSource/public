@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.003
+local version = 1.004
 
 --[[
 
@@ -1407,6 +1407,18 @@ function GetBestCircularFarmPosition(range, radius, objects)
     end
 
     return BestPos, BestHit
+
+end
+
+function SelectUnits(units, condition)
+    
+    local result = {}
+    for i, unit in ipairs(units) do
+        if condition(unit) then
+            table.insert(result, unit)
+        end
+    end
+    return result
 
 end
 
