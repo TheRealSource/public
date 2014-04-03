@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.007
+local version = 1.008
 
 --[[
 
@@ -967,6 +967,9 @@ function _Circle:Draw()
                 end
                 table.insert(screenPoints[#screenPoints], D3DXVECTOR2(x, y))
             else
+                if prevX == nil then
+                    table.insert(screenPoints[#screenPoints], D3DXVECTOR2(x, y))
+                end
                 prevX, prevY = x, y
             end
         end
@@ -989,6 +992,9 @@ function _Circle:Draw()
                 end
                 table.insert(screenPoints[#screenPoints], D3DXVECTOR2(point.x, point.y))
             else
+                if previousPoint == nil then
+                    table.insert(screenPoints[#screenPoints], D3DXVECTOR2(point.x, point.y))
+                end
                 previousPoint = point
             end
         end
@@ -1011,6 +1017,9 @@ function _Circle:Draw()
                 end
                 table.insert(screenPoints[#screenPoints], D3DXVECTOR2(x, y))
             else
+                if prevX == nil then
+                    table.insert(screenPoints[#screenPoints], D3DXVECTOR2(x, y))
+                end
                 prevX, prevY = x, y
             end
         end
