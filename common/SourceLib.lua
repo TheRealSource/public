@@ -551,7 +551,6 @@ function Spell:__Cast(param1, param2)
         end
     end
 
-    self._lastCastTime = GetTickCount()
     return SPELLSTATE_TRIGGERED
 
 end
