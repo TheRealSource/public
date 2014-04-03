@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.005
+local version = 1.007
 
 --[[
 
@@ -701,7 +701,7 @@ end
 ]]
 function DrawManager:CreateCircle(position, radius, width, color)
 
-    local circle = Circle(position, radius, width, color)
+    local circle = _Circle(position, radius, width, color)
     self:AddCircle(circle)
     return circle
 
@@ -729,30 +729,30 @@ end
                  ''|....'  .||. .||.     '|...' .||.  '|...' 
 
     Functions:
-        Circle(position, radius, width, color)
+        _Circle(position, radius, width, color)
 
     Members:
-        Circle.enabled  | bool   | Enable or diable the circle (displayed)
-        Circle.mode     | int    | See circle modes below
-        Circle.position | vector | Center of the circle
-        Circle.radius   | float  | Radius of the circle
+        _Circle.enabled  | bool   | Enable or diable the circle (displayed)
+        _Circle.mode     | int    | See circle modes below
+        _Circle.position | vector | Center of the circle
+        _Circle.radius   | float  | Radius of the circle
         -- These are not changeable when a menu is set
-        Circle.width    | int    | Width of the circle outline
-        Circle.color    | table  | Color of the circle in a tale format { a, r, g, b }
-        Circle.quality  | float  | Quality of the circle, the higher the smoother the circle
+        _Circle.width    | int    | Width of the circle outline
+        _Circle.color    | table  | Color of the circle in a tale format { a, r, g, b }
+        _Circle.quality  | float  | Quality of the circle, the higher the smoother the circle
 
     Methods:
-        Circle:AddToMenu(menu, paramText, addColor, addWidth, addQuality)
-        Circle:SetEnabled(enabled)
-        Circle:Set2D()
-        Circle:Set3D()
-        Circle:SetMinimap()
-        Circle:SetQuality(qualtiy)
-        Circle:SetDrawCondition(condition)
-        Circle:Draw()
+        _Circle:AddToMenu(menu, paramText, addColor, addWidth, addQuality)
+        _Circle:SetEnabled(enabled)
+        _Circle:Set2D()
+        _Circle:Set3D()
+        _Circle:SetMinimap()
+        _Circle:SetQuality(qualtiy)
+        _Circle:SetDrawCondition(condition)
+        _Circle:Draw()
 
 ]]
-class 'Circle'
+class '_Circle'
 
 -- Circle modes
 CIRCLE_2D      = 0
@@ -770,11 +770,11 @@ local circleCount = 1
     @param width    | int    | Width of the circle outline
     @param color    | table  | Color of the circle in a tale format { a, r, g, b }
 ]]
-function Circle:__init(position, radius, width, color)
+function _Circle:__init(position, radius, width, color)
 
-    assert(position and position.x and (position.y and position.z or position.y), "Circle: position is invalid!")
-    assert(radius and type(radius) == "number", "Circle: radius is invalid!")
-    assert(not color or color and type(color) == "table" and #color == 4, "Circle: color is invalid!")
+    assert(position and position.x and (position.y and position.z or position.y), "_Circle: position is invalid!")
+    assert(radius and type(radius) == "number", "_Circle: radius is invalid!")
+    assert(not color or color and type(color) == "table" and #color == 4, "_Circle: color is invalid!")
 
     self.enabled   = true
     self.condition = nil
@@ -810,10 +810,10 @@ end
     @param addQuality | bool         | Add quality option
     @return           | class        | The current instance
 ]]
-function Circle:AddToMenu(menu, paramText, addColor, addWidth, addQuality)
+function _Circle:AddToMenu(menu, paramText, addColor, addWidth, addQuality)
 
-    assert(menu, "Circle: menu is invalid!")
-    assert(self.menu == nil, "Circle: Already bound to a menu!")
+    assert(menu, "_Circle: menu is invalid!")
+    assert(self.menu == nil, "_Circle: Already bound to a menu!")
 
     menu:addSubMenu(paramText or "Circle " .. self._circleNum, self._circleId)
     self.menu = menu[self._circleId]
@@ -858,7 +858,7 @@ end
     @param enabled | bool  | Enable state of this circle
     @return        | class | The current instance
 ]]
-function Circle:SetEnabled(enabled)
+function _Circle:SetEnabled(enabled)
 
     self.enabled = enabled
     return self
@@ -870,7 +870,7 @@ end
 
     @return | class | The current instance
 ]]
-function Circle:Set2D()
+function _Circle:Set2D()
 
     self.mode = CIRCLE_2D
     return self
@@ -882,7 +882,7 @@ end
 
     @return | class | The current instance
 ]]
-function Circle:Set3D()
+function _Circle:Set3D()
 
     self.mode = CIRCLE_3D
     return self
@@ -894,7 +894,7 @@ end
 
     @return | class | The current instance
 ]]
-function Circle:SetMinimap()
+function _Circle:SetMinimap()
 
     self.mode = CIRCLE_MINIMAP
     return self
@@ -906,9 +906,9 @@ end
 
     @return | class | The current instance
 ]]
-function Circle:SetQuality(qualtiy)
+function _Circle:SetQuality(qualtiy)
 
-    assert(qualtiy and type(qualtiy) == "number", "Circle: quality is invalid!")
+    assert(qualtiy and type(qualtiy) == "number", "_Circle: quality is invalid!")
     self.quality = quality
     return self
 
@@ -919,9 +919,9 @@ end
 
     @return | class | The current instance
 ]]
-function Circle:SetDrawCondition(condition)
+function _Circle:SetDrawCondition(condition)
 
-    assert(condition and type(condition) == "function", "Circle: condition is invalid!")
+    assert(condition and type(condition) == "function", "_Circle: condition is invalid!")
     self.condition = condition
     return self
 
@@ -930,7 +930,7 @@ end
 --[[
     Draw this circle, should only be called from OnDraw()
 ]]
-function Circle:Draw()
+function _Circle:Draw()
 
     -- Don't draw if condition is not met
     if self.condition ~= nil and self.condition() == false then return end
@@ -952,18 +952,82 @@ function Circle:Draw()
     end
 
     if self.mode == CIRCLE_2D then
-        DrawCircle2D(self.position.x, self.position.y, self.radius, self.width, TARGB(self.color), self.quality)
+        local prevX, prevY = nil, nil
+        local screenPoints = {}
+        screenPoints[1] = {}
+        for theta = 0, 2 * math.pi + self.quality, self.quality do
+            local x, y = self.position.x + self.radius * math.cos(theta), self.position.y - self.radius * math.sin(theta)
+            if self:PointOnScreen(x, y) then
+                if prevX ~= nil then
+                    if #screenPoints[#screenPoints] > 0 then
+                        screenPoints[#screenPoints + 1] = {}
+                    end
+                    table.insert(screenPoints[#screenPoints], D3DXVECTOR2(prevX, prevY))
+                    prevX ,prevY = nil, nil
+                end
+                table.insert(screenPoints[#screenPoints], D3DXVECTOR2(x, y))
+            else
+                prevX, prevY = x, y
+            end
+        end
+        for _, points in ipairs(screenPoints) do
+            DrawLines2(points, self.width, TARGB(self.color))
+        end
     elseif self.mode == CIRCLE_3D then
-        DrawCircle3D(self.position.x, self.position.y, self.position.z, self.radius, self.width, TARGB(self.color), self.quality)
+        local previousPoint = nil
+        local screenPoints = {}
+        screenPoints[1] = {}
+        for theta = 0, 2 * math.pi + self.quality, self.quality do
+            local point = WorldToScreen(D3DXVECTOR3(self.position.x + self.radius * math.cos(theta), self.position.y, self.position.z - self.radius * math.sin(theta)))
+            if self:PointOnScreen(point.x, point.y) then
+                if previousPoint ~= nil then
+                    if #screenPoints[#screenPoints] > 0 then
+                        screenPoints[#screenPoints + 1] = {}
+                    end
+                    table.insert(screenPoints[#screenPoints], D3DXVECTOR2(previousPoint.x, previousPoint.y))
+                    previousPoint = nil
+                end
+                table.insert(screenPoints[#screenPoints], D3DXVECTOR2(point.x, point.y))
+            else
+                previousPoint = point
+            end
+        end
+        for _, points in ipairs(screenPoints) do
+            DrawLines2(points, self.width, TARGB(self.color))
+        end
     elseif self.mode == CIRCLE_MINIMAP then
-        DrawCircleMinimap(self.position.x, self.position.y, self.position.z, self.radius, self.width, TARGB(self.color), self.quality)
+        local prevX, prevY = nil, nil
+        local screenPoints = {}
+        screenPoints[1] = {}
+        for theta = 0, 2 * math.pi + math.min(self.quality, 0.785), math.min(self.quality, 0.785) do
+            local x, y = GetMinimapX(self.position.x + self.radius * math.cos(theta)), GetMinimapY(self.position.z - self.radius * math.sin(theta))
+            if self:PointOnScreen(x, y) then
+                if prevX ~= nil then
+                    if #screenPoints[#screenPoints] > 0 then
+                        screenPoints[#screenPoints + 1] = {}
+                    end
+                    table.insert(screenPoints[#screenPoints], D3DXVECTOR2(prevX, prevY))
+                    prevX ,prevY = nil, nil
+                end
+                table.insert(screenPoints[#screenPoints], D3DXVECTOR2(x, y))
+            else
+                prevX, prevY = x, y
+            end
+        end
+        for _, points in ipairs(screenPoints) do
+            DrawLines2(points, self.width, TARGB(self.color))
+        end
     else
-        print("Circle: Something is wrong with the circle.mode!")
+        print("_Circle: Something is wrong with the circle.mode!")
     end
 
 end
 
-function Circle:__eq(other)
+function _Circle:PointOnScreen(x, y)
+    return x <= WINDOW_W and x >= 0 and y >= 0 and y <= WINDOW_H
+end
+
+function _Circle:__eq(other)
     return other._circleId and other._circleId == self._circleId or false
 end
 
@@ -1382,7 +1446,7 @@ function CountObjectsNearPos(pos, range, radius, objects)
 
     local n = 0
     for i, object in ipairs(objects) do
-        if ValidTarget(object, range + radius) and GetDistanceSqr(pos, object) <= radius * radius then
+        if GetDistanceSqr(pos, object) <= radius * radius then
             n = n + 1
         end
     end
@@ -1396,19 +1460,37 @@ function GetBestCircularFarmPosition(range, radius, objects)
     local BestPos 
     local BestHit = 0
     for i, object in ipairs(objects) do
-        if ValidTarget(object, range) then
-            local hit = CountObjectsNearPos(object.visionPos, range, radius, objects)
-            if hit > BestHit then
-                BestHit = hit
-                BestPos = Vector(object)
-                if BestHit == #objects then
-                    break
-                end
+        local hit = CountObjectsNearPos(object.visionPos or object, range, radius, objects)
+        if hit > BestHit then
+            BestHit = hit
+            BestPos = Vector(object)
+            if BestHit == #objects then
+               break
             end
-        end
+         end
     end
 
     return BestPos, BestHit
+
+end
+
+function GetPredictedPositionsTable(VP, t, delay, width, range, speed, source, collision)
+
+    local result = {}
+    for i, target in ipairs(t) do
+        local CastPosition, Hitchance, Position = VP:GetCircularCastPosition(target, delay, width, range, speed, source, collision) 
+        table.insert(result, Position)
+    end
+    return result
+
+end
+
+function MergeTables(t1, t2)
+
+    for i = 1, #t2 do
+        t1[#t1 + 1] = t2[i]
+    end
+    return t1
 
 end
 
