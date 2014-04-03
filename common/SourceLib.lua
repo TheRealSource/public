@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.008
+local version = 1.009
 
 --[[
 
@@ -180,6 +180,11 @@ end
         Spell:AddAutomation(automationId, func)
         Spell:RemoveAutomation(automationId)
         Spell:ClearAutomations()
+        Spell:TrackCasting(spellName)
+        Spell:WillHitTarget()
+        Spell:RegisterCastCallback(func)
+        Spell:GetLastCastTime()
+        Spell:IsInRange(target, from)
         Spell:IsReady()
         Spell:GetManaUsage()
         Spell:GetCooldown()
@@ -222,6 +227,21 @@ function __spell_OnTick()
     end
 end
 
+-- Spell tracking
+local __spell_trackedSpells = nil
+function __spell_OnProcSpell(unit, spell)
+    if #__spell_trackedSpells > 0 and unit and unit.valid and unit.isMe and spell and spell.name then
+        for index, spell in ipairs(__spell_trackedSpells) do
+            if sell._spellName and spell._spellName == spell.name then
+                spell._lastCastTime = os.clock()
+                spell._castCallback(spell)
+            elseif not spell._spellName then
+                table.remove(__spell_trackedSpells, index)
+            end
+        end
+    end
+end
+
 -- Spell identifier number used for comparing spells
 local spellNum = 1
 
@@ -239,6 +259,8 @@ function Spell:__init(spellId, range, packetCast)
     self.spellId = spellId
     self:SetRange(range)
     self.packetCast = packetCast or false
+
+    self:SetSource(player)
 
     self._automations = {}
 
@@ -335,8 +357,6 @@ function Spell:SetSkillshot(VP, skillshotType, width, delay, speed, collision)
     self.speed = speed
     self.collision = collision
 
-    self:SetSource(player)
-
     if not self.hitChance then self.hitChance = 2 end
 
     return self
@@ -383,7 +403,7 @@ end
 ]]
 function Spell:ValidTarget(target, range)
 
-    return ValidTarget(target, (range and range or self.range))
+    return ValidTarget(target, range or self.range)
 
 end
 
@@ -531,6 +551,7 @@ function Spell:__Cast(param1, param2)
         end
     end
 
+    self._lastCastTime = GetTickCount()
     return SPELLSTATE_TRIGGERED
 
 end
@@ -588,6 +609,71 @@ end
 ]]
 function Spell:ClearAutomations()
     self._automations = {}
+end
+
+--[[
+    Track the spell like in OnProcessSpell to add more features to Spell
+
+    @param spellName | string | Case sensitive name of the spell
+    @return          | class  | The current instance
+]]
+function Spell:TrackCasting(spellName)
+
+    assert(spellName and type(spellName) == "string" and self._spellName == nil, "Spell: spellName is invalid or already registered!")
+
+    self._spellName = spellName
+
+    if __spell_trackedSpells == nil then
+        __spell_trackedSpells = {}
+        AddProcessSpellCallback(__spell_OnProcSpell)
+    end
+
+    table.insert(__spell_trackedSpells, self)
+
+    return self
+
+end
+
+--[[
+    When the spell is casted and about to hit a target, this will return the following
+
+    @return | CUnit,float | The target unit, the remaining time in seconds it will take to hit the target, otherwise nil
+]]
+function Spell:WillHitTarget()
+
+    -- TODO: VPrediction expert's work ;D
+
+end
+
+--[[
+    Register a function which will be triggered when the spell is being casted the function will be given the spell object as parameter
+
+    @param func | function | Function to be called when the spell is being processed (casted)
+]]
+function Spell:RegisterCastCallback(func)
+
+    assert(func and type(func) == "function" and self._castCallback == nil, "Spell: func is either invalid or a callback is already registered!")
+
+    self._castCallback = func
+
+end
+
+--[[
+    Returns the os.clock() time when the spell was last casted
+
+    @return | float | Time in seconds when the spell was last casted or nil if the spell was never casted or spell is not tracked
+]]
+function Spell:GetLastCastTime()
+    return self._lastCastTime
+end
+
+--[[
+    Get if the target is in range
+
+    @return | bool | In range or not
+]]
+function Spell:IsInRange(target, from)
+    return self.rangeSqr >= GetDistanceSqr(target, from or self.sourcePosition)
 end
 
 --[[
