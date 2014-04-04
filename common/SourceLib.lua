@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.010
+local version = 1.011
 
 --[[
 
@@ -1036,83 +1036,19 @@ function _Circle:Draw()
         end
     end
 
+    local center = WorldToScreen(D3DXVECTOR3(self.position.x, self.position.y, self.position.z))
+    if not self:PointOnScreen(center.x, center.y) then
+        return
+    end
+
     if self.mode == CIRCLE_2D then
-        local prevX, prevY = nil, nil
-        local screenPoints = {}
-        screenPoints[1] = {}
-        for theta = 0, 2 * math.pi + self.quality, self.quality do
-            local x, y = self.position.x + self.radius * math.cos(theta), self.position.y - self.radius * math.sin(theta)
-            if self:PointOnScreen(x, y) then
-                if prevX ~= nil then
-                    if #screenPoints[#screenPoints] > 0 then
-                        screenPoints[#screenPoints + 1] = {}
-                    end
-                    table.insert(screenPoints[#screenPoints], D3DXVECTOR2(prevX, prevY))
-                    prevX ,prevY = nil, nil
-                end
-                table.insert(screenPoints[#screenPoints], D3DXVECTOR2(x, y))
-            else
-                if prevX == nil then
-                    table.insert(screenPoints[#screenPoints], D3DXVECTOR2(x, y))
-                end
-                prevX, prevY = x, y
-            end
-        end
-        for _, points in ipairs(screenPoints) do
-            DrawLines2(points, self.width, TARGB(self.color))
-        end
+        DrawCircle2D(self.position.x, self.position.y, self.radius, self.width, TARGB(self.color), self.quality)
     elseif self.mode == CIRCLE_3D then
-        local previousPoint = nil
-        local screenPoints = {}
-        screenPoints[1] = {}
-        for theta = 0, 2 * math.pi + self.quality, self.quality do
-            local point = WorldToScreen(D3DXVECTOR3(self.position.x + self.radius * math.cos(theta), self.position.y, self.position.z - self.radius * math.sin(theta)))
-            if self:PointOnScreen(point.x, point.y) then
-                if previousPoint ~= nil then
-                    if #screenPoints[#screenPoints] > 0 then
-                        screenPoints[#screenPoints + 1] = {}
-                    end
-                    table.insert(screenPoints[#screenPoints], D3DXVECTOR2(previousPoint.x, previousPoint.y))
-                    previousPoint = nil
-                end
-                table.insert(screenPoints[#screenPoints], D3DXVECTOR2(point.x, point.y))
-            else
-                if previousPoint == nil then
-                    table.insert(screenPoints[#screenPoints], D3DXVECTOR2(point.x, point.y))
-                end
-                previousPoint = point
-            end
-        end
-        for _, points in ipairs(screenPoints) do
-            DrawLines2(points, self.width, TARGB(self.color))
-        end
+        DrawCircle3D(self.position.x, self.position.y, self.position.z, self.radius, self.width, TARGB(self.color), self.quality)
     elseif self.mode == CIRCLE_MINIMAP then
-        local prevX, prevY = nil, nil
-        local screenPoints = {}
-        screenPoints[1] = {}
-        for theta = 0, 2 * math.pi + math.min(self.quality, 0.785), math.min(self.quality, 0.785) do
-            local x, y = GetMinimapX(self.position.x + self.radius * math.cos(theta)), GetMinimapY(self.position.z - self.radius * math.sin(theta))
-            if self:PointOnScreen(x, y) then
-                if prevX ~= nil then
-                    if #screenPoints[#screenPoints] > 0 then
-                        screenPoints[#screenPoints + 1] = {}
-                    end
-                    table.insert(screenPoints[#screenPoints], D3DXVECTOR2(prevX, prevY))
-                    prevX ,prevY = nil, nil
-                end
-                table.insert(screenPoints[#screenPoints], D3DXVECTOR2(x, y))
-            else
-                if prevX == nil then
-                    table.insert(screenPoints[#screenPoints], D3DXVECTOR2(x, y))
-                end
-                prevX, prevY = x, y
-            end
-        end
-        for _, points in ipairs(screenPoints) do
-            DrawLines2(points, self.width, TARGB(self.color))
-        end
+        DrawCircleMinimap(self.position.x, self.position.y, self.position.z, self.radius, self.width, TARGB(self.color), self.quality)
     else
-        print("_Circle: Something is wrong with the circle.mode!")
+        print("Circle: Something is wrong with the circle.mode!")
     end
 
 end
@@ -1183,8 +1119,8 @@ function DamageLib:__init(source)
 
     -- Most common damage sources
     self:RegisterDamageSource(_IGNITE, _TRUE, 0, 0, _TRUE, _AP, 0, function() return _IGNITE and (self.source:CanUseSpell(_IGNITE) == READY) end, function() return (50 + 20 * self.source.level) end)
-    self:RegisterDamageSource(_DFG, _MAGIC, 0, 0, _MAGIC, _AP, 0, function() return GetInventorySlotItem(_DFG) and (self.source:CanUseSpell(GetInventorySlotItem(_DFG)) == READY) end, function(target) return 0.15 * target.maxHealth end)
-    self:RegisterDamageSource(_BOTRK, _MAGIC, 0, 0, _MAGIC, _AP, 0, function() return GetInventorySlotItem(_BOTRK) and (self.source:CanUseSpell(GetInventorySlotItem(_BOTRK)) == READY) end, function(target) return 0.15 * target.maxHealth end)
+    self:RegisterDamageSource(ItemManager:GetItem("DFG"):GetId(), _MAGIC, 0, 0, _MAGIC, _AP, 0, function() return ItemManager:GetItem("DFG"):GetSlot() and (self.source:CanUseSpell(ItemManager:GetItem("DFG"):GetSlot()) == READY) end, function(target) return 0.15 * target.maxHealth end)
+    self:RegisterDamageSource(ItemManager:GetItem("BOTRK"):GetId(), _MAGIC, 0, 0, _MAGIC, _AP, 0, function() return ItemManager:GetItem("BOTRK"):GetSlot() and (self.source:CanUseSpell(ItemManager:GetItem("BOTRK"):GetSlot()) == READY) end, function(target) return 0.15 * target.maxHealth end)
     self:RegisterDamageSource(_AA, _PHYSICAL, 0, 0, _PHYSICAL, _AD, 1)
 
 end
@@ -1482,6 +1418,87 @@ function SimpleTS:GetTarget(range, n, forcemode)
 end
 
 
+class "_ItemManager"
+function _ItemManager:__init()
+    self.items = {
+            ["DFG"] = {id = 3128, range = 650, cancastonenemy = true},
+            ["BOTRK"] = {id = 3153, range = 450, cancastonenemy = true}
+        }
+
+    self.requesteditems = {}
+end
+
+function _ItemManager:CastOffensiveItems(target)
+
+    for name, itemdata in pairs(self.items) do
+        local item = self:GetItem(name)
+        if item:InRange(target) then
+            item:Cast(target)
+        end
+    end
+
+end
+
+function _ItemManager:GetItem(name)
+    assert(name and self.items[name], "ItemManager: Item not found")
+    if not self.requesteditems[name] then
+        self.requesteditems[name] = Item(self.items[name].id, self.items[name].range)
+    end
+    return self.requesteditems[name]
+end
+
+ItemManager = _ItemManager()
+
+class "Item"
+function Item:__init(id, range)
+    self.id = id
+    self.range = range
+    self.rangeSqr = range * range
+    self.slot = GetInventorySlotItem(id)
+end
+
+function Item:GetId()
+    return self.id
+end
+
+function Item:GetRange(sqr)
+    return sqr and self.rangeSqr or self.range
+end
+
+function Item:GetSlot()
+    self:UpdateSlot()
+    return self.slot
+end
+
+function Item:UpdateSlot()
+    self.slot = GetInventorySlotItem(self.id)
+end
+
+function Item:IsReady()
+    self:UpdateSlot()
+    return self.slot and (player:CanUseSpell(self.slot) == READY)
+end
+
+function Item:InRange(target)
+    return GetDistanceSqr(target) <= self.rangeSqr
+end
+
+function Item:Cast(param1, param2)
+
+    self:UpdateSlot()
+    if self.slot then
+        if param1 ~= nil and param2 ~= nil then
+            CastSpell(self.slot, param1, param2)
+        elseif param1 ~= nil then
+            CastSpell(self.slot, param1)
+        else
+            CastSpell(self.slot)
+        end
+        return SPELLSTATE_TRIGGERED
+    end
+
+end
+
 --[[
 
 '||'  '|'   .    ||  '||  
@@ -1691,10 +1708,6 @@ end
 _IGNITE  = GetSummonerSlot("SummonerDot")
 _FLASH   = GetSummonerSlot("SummonerFlash")
 _EXHAUST = GetSummonerSlot("SummonerExhaust")
-
---Items
-_DFG = 3128
-_BOTRK = 3153
 
 --Others
 _AA = 10000
