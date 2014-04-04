@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.011
+local version = 1.012
 
 --[[
 
@@ -176,6 +176,9 @@ end
         Spell:SetAOE(useAoe, radius, minTargetsAoe)
         Spell:SetHitChance(hitChance)
         Spell:ValidTarget(target)
+        Spell:GetPrediction(target)
+        Spell:CastIfDashing(target)
+        Spell:CastIfImmobile(target)
         Spell:Cast(param1, param2)
         Spell:AddAutomation(automationId, func)
         Spell:RemoveAutomation(automationId)
@@ -408,6 +411,31 @@ function Spell:ValidTarget(target, range)
 end
 
 --[[
+    Returns the prediction results from VPrediction to use for custom reasons
+
+    @return | various data | The original result from VPrediction
+]]
+function Spell:GetPrediction(target)
+
+    if self.skillshotType ~= nil then
+        if self.skillshotType == SKILLSHOT_LINEAR then
+            if self.useAoe then
+                return self.VP:GetLineAOECastPosition(target, self.delay, self.radius, self.range, self.speed, self.sourcePosition)
+            else
+                return self.VP:GetLineCastPosition(target, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
+            end
+        elseif self.skillshotType == SKILLSHOT_CIRCULAR then
+            if self.useAoe then
+                return self.VP:GetCircularAOECastPosition(target, self.delay, self.radius, self.range, self.speed, self.sourcePosition)
+            else
+                return self.VP:GetCircularCastPosition(target, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
+            end
+        end
+    end
+
+end
+
+--[[
     Tries to cast the spell when the target is dashing
 
     @param target | Cunit | Dashing target to attack
@@ -491,17 +519,17 @@ function Spell:Cast(param1, param2)
         local castPosition, hitChance, position, nTargets
         if self.skillshotType == SKILLSHOT_LINEAR then
             if self.useAoe then
-                castPosition, hitChance, nTargets = self.VP:GetLineAOECastPosition(param1, self.delay, self.radius, self.range, self.speed, self.sourcePosition)
+                castPosition, hitChance, nTargets = self.GetPrediction(param1)
             else
-                castPosition, hitChance, position = self.VP:GetLineCastPosition(param1, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
+                castPosition, hitChance, position = self.GetPrediction(param1)
                 -- Out of range
                 if self.rangeSqr < GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
             end
         elseif self.skillshotType == SKILLSHOT_CIRCULAR then
             if self.useAoe then
-                castPosition, hitChance, nTargets = self.VP:GetCircularAOECastPosition(param1, self.delay, self.radius, self.range, self.speed, self.sourcePosition)
+                castPosition, hitChance, nTargets = self.GetPrediction(param1)
             else
-                castPosition, hitChance, position = self.VP:GetCircularCastPosition(param1, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
+                castPosition, hitChance, position = self.GetPrediction(param1)
                 -- Out of range
                 if math.pow(self.range + self.width + self.VP:GetHitBox(param1), 2) < GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
             end
