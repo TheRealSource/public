@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.009
+local version = 1.010
 
 --[[
 
@@ -74,13 +74,16 @@ class 'LazyUpdater'
 --[[
     Create a new instance of LazyUpdater
 
-    @param scriptName | string | Name of the script which should be used when printed in chat
-    @param version    | float  | Current version of the script
-    @param host       | string | Host, for example "bitbucket.org" or "raw.github.com"
-    @param hostPath   | string | Raw path to the script which should be updated
-    @param filePath   | string | Path to the file which should be replaced when updating the script
+    @param scriptName | string        | Name of the script which should be used when printed in chat
+    @param version    | float/string  | Current version of the script
+    @param host       | string        | Host, for example "bitbucket.org" or "raw.github.com"
+    @param hostPath   | string        | Raw path to the script which should be updated
+    @param filePath   | string        | Path to the file which should be replaced when updating the script
 ]]
 function LazyUpdater:__init(scriptName, version, host, hostPath, filePath)
+
+    self.printMessage = function(message) if not self.silent then print("<font color=\"#6699ff\"><b>" .. self.UPDATE_SCRIPT_NAME .. ":</b></font> <font color=\"#FFFFFF\">" .. message .. "</font>") end end
+    self.getVersion = function(version) return tonumber(string.match(version, "%d+%.%d+")) end
 
     self.UPDATE_SCRIPT_NAME = scriptName
     self.UPDATE_HOST = host
@@ -88,11 +91,8 @@ function LazyUpdater:__init(scriptName, version, host, hostPath, filePath)
     self.UPDATE_FILE_PATH = filePath
     self.UPDATE_URL = "https://"..self.UPDATE_HOST..self.UPDATE_PATH
 
-    self.FILE_VERSION = version
+    self.FILE_VERSION = self.getVersion(version)
     self.SERVER_VERSION = nil
-
-    self.printMessage = function(message) if not self.silent then print("<font color=\"#6699ff\"><b>" .. self.UPDATE_SCRIPT_NAME .. ":</b></font> <font color=\"#FFFFFF\">" .. message .. "</font>") end end
-    self.getVersion = function(version) return tonumber(string.match(version, "%d+%.%d+")) end
 
     -- Members
     self.silent = false
