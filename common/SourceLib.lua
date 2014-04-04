@@ -519,17 +519,17 @@ function Spell:Cast(param1, param2)
         local castPosition, hitChance, position, nTargets
         if self.skillshotType == SKILLSHOT_LINEAR then
             if self.useAoe then
-                castPosition, hitChance, nTargets = self.GetPrediction(param1)
+                castPosition, hitChance, nTargets = self:GetPrediction(param1)
             else
-                castPosition, hitChance, position = self.GetPrediction(param1)
+                castPosition, hitChance, position = self:GetPrediction(param1)
                 -- Out of range
                 if self.rangeSqr < GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
             end
         elseif self.skillshotType == SKILLSHOT_CIRCULAR then
             if self.useAoe then
-                castPosition, hitChance, nTargets = self.GetPrediction(param1)
+                castPosition, hitChance, nTargets = self:GetPrediction(param1)
             else
-                castPosition, hitChance, position = self.GetPrediction(param1)
+                castPosition, hitChance, position = self:GetPrediction(param1)
                 -- Out of range
                 if math.pow(self.range + self.width + self.VP:GetHitBox(param1), 2) < GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
             end
