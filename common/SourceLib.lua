@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.013
+local version = 1.014
 
 --[[
 
@@ -1142,6 +1142,17 @@ _MAGIC, _PHYSICAL, _TRUE = 0, 1, 2
 --Percentage scale type's 
 _AP, _AD, _BONUS_AD, _HEALTH, _ARMOR, _MR, _MAXHEALTH, _MAXMANA = 1, 2, 3, 4, 5, 6, 7, 8
 
+--Percentage scale functions
+local _ScalingFunctions = {
+    [_AP] = function(x, y) return x * y.source.ap end,
+    [_AD] = function(x, y) return x * y.source.totalDamage end,
+    [_BONUS_AD] = function(x, y) return x * y.source.addDamage end,
+    [_ARMOR] = function(x, y) return x * y.source.armor end,
+    [_MR] = function(x, y) return x * y.source.magicArmor end,
+    [_MAXHEALTH] = function(x, y) return x * y.source.maxHeath end,
+    [_MAXMANA] = function(x, y) return x * y.source.maxMana end,
+}
+
 --[[
     New instance of DamageLib
 
@@ -1196,31 +1207,13 @@ end
 
 function DamageLib:GetScalingDamage(target, scalingtype, scalingstat, percentscaling)
 
-    local amount = 0
-
-    if scalingstat == _AP then
-        amount = percentscaling * self.source.ap
-    elseif scalingstat == _AD then
-        amount = percentscaling * self.source.totalDamage
-    elseif scalingstat == _BONUS_AD then
-        amount = percentscaling * self.source.addDamage
-    elseif scalingstat == _ARMOR then
-        amount = percentscaling * self.source.armor
-    elseif scalingstat == _MR then
-        amount = percentscaling * self.source.magicArmor
-    elseif scalingstat == _MAXHEALTH then
-        amount = percentscaling * self.source.maxHeath
-    elseif scalingstat == _MAXMANA then
-        amount = percentscaling * self.source.maxMana
-    end
+    local amount = (_ScalingFunctions[scalingstat] or function() return 0 end)(percentscaling, self)
 
     if scalingtype == _MAGIC then
         return self.source:CalcMagicDamage(target, amount)
-    end
-    if scalingtype == _PHYSICAL then
+    elseif scalingtype == _PHYSICAL then
         return self.source:CalcDamage(target, amount)
-    end
-    if scalingtype == _TRUE then
+    elseif scalingtype == _TRUE then
         return amount
     end
 
