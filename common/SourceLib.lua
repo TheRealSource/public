@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.012
+local version = 1.013
 
 --[[
 
@@ -200,6 +200,7 @@ class 'Spell'
 -- Class related constants
 SKILLSHOT_LINEAR   = 0
 SKILLSHOT_CIRCULAR = 1
+SKILLSHOT_CONE     = 2
 
 -- Different SpellStates returned when Spell:Cast() is called
 SPELLSTATE_TRIGGERED          = 0
@@ -430,6 +431,12 @@ function Spell:GetPrediction(target)
             else
                 return self.VP:GetCircularCastPosition(target, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
             end
+         elseif self.skillshotType == SKILLSHOT_CONE then
+            if self.useAoe then
+                return self.VP:GetConeAOECastPosition(target, self.delay, self.radius, self.range, self.speed, self.sourcePosition)
+            else
+                return self.VP:GetLineCastPosition(target, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
+            end
         end
     end
 
@@ -517,7 +524,7 @@ function Spell:Cast(param1, param2)
         if not ValidTarget(param1) then return SPELLSTATE_INVALID_TARGET end
 
         local castPosition, hitChance, position, nTargets
-        if self.skillshotType == SKILLSHOT_LINEAR then
+        if self.skillshotType == SKILLSHOT_LINEAR or self.skillshotType == SKILLSHOT_CONE then
             if self.useAoe then
                 castPosition, hitChance, nTargets = self:GetPrediction(param1)
             else
