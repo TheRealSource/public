@@ -26,17 +26,7 @@ local version = 1.016
 
     Introduction:
         We were tired of updating every single script we developed so far so we decided to have it a little bit
-        more dynamic with a custom library which we can update instead and every script using it will automatic1
-
--- Change autoUpdate to false if you wish to not receive auto updates.
-
-2
-
--- Change silentUpdate to true if you wish not to receive any message regarding updates
-
-3
-
-local autoUpdate   = trueally
+        more dynamic with a custom library which we can update instead and every script using it will automatically
         be updated (of course only the parts which are in this lib). So let's say packet casting get's fucked up
         or we want to change the way some drawing is done, we just need to update it here and all scripts will have
         the same tweaks then.
