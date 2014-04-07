@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.017
+local version = 1.018
 
 --[[
 
@@ -1560,7 +1560,7 @@ end
 ]]
 
 AllClassGetDistanceSqr = GetDistanceSqr
-function GetDistanceSqr(p1, p2)
+function _GetDistanceSqr(p1, p2)
 
     if p2 == nil then p2 = player end
     if p1 and p1.networkID and (p1.networkID ~= 0) and p1.visionPos then p1 = p1.visionPos end
