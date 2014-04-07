@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.016
+local version = 1.017
 
 --[[
 
@@ -471,7 +471,7 @@ function Spell:CastIfDashing(target)
         elseif not isDashing then return SPELLSTATE_NOT_DASHING
         else return SPELLSTATE_DASHING_CANT_HIT end
     else
-        local isDashing, canHit, position = self.VP:IsDashing(target, self.delay + 0.07 + GetLatency() / 2000, 1, math.huge, self.sourcePosition)
+        local isDashing, canHit, position = self.VP:IsDashing(target, 0.25 + 0.07 + GetLatency() / 2000, 1, math.huge, self.sourcePosition)
 
         -- Out of range
         if self.rangeSqr < GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
