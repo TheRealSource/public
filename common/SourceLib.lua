@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.015
+local version = 1.016
 
 --[[
 
@@ -26,7 +26,17 @@ local version = 1.015
 
     Introduction:
         We were tired of updating every single script we developed so far so we decided to have it a little bit
-        more dynamic with a custom library which we can update instead and every script using it will automatically
+        more dynamic with a custom library which we can update instead and every script using it will automatic1
+
+-- Change autoUpdate to false if you wish to not receive auto updates.
+
+2
+
+-- Change silentUpdate to true if you wish not to receive any message regarding updates
+
+3
+
+local autoUpdate   = trueally
         be updated (of course only the parts which are in this lib). So let's say packet casting get's fucked up
         or we want to change the way some drawing is done, we just need to update it here and all scripts will have
         the same tweaks then.
@@ -470,6 +480,16 @@ function Spell:CastIfDashing(target)
 
         elseif not isDashing then return SPELLSTATE_NOT_DASHING
         else return SPELLSTATE_DASHING_CANT_HIT end
+    else
+        local isDashing, canHit, position = self.VP:IsDashing(target, self.delay + 0.07 + GetLatency() / 2000, 1, math.huge, self.sourcePosition)
+
+        -- Out of range
+        if self.rangeSqr < GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
+
+        if isDashing and canHit then
+            return self:__Cast(position.x, position.z)
+        elseif not isDashing then return SPELLSTATE_NOT_DASHING
+        else return SPELLSTATE_DASHING_CANT_HIT end
     end
 
     return SPELLSTATE_NOT_TRIGGERED
@@ -503,6 +523,17 @@ function Spell:CastIfImmobile(target)
             end
 
         else return SPELLSTATE_NOT_IMMOBILE end
+    else
+        local isImmobile, position = self.VP:IsImmobile(target, 0.25 + 0.07 + GetLatency() / 2000, 1, math.huge, self.sourcePosition)
+
+        -- Out of range
+        if self.rangeSqr < GetDistanceSqr(self.sourceRange, target) then return SPELLSTATE_OUT_OF_RANGE end
+
+        if isImmobile then
+            return self:__Cast(target)
+        else
+            return SPELLSTATE_NOT_IMMOBILE
+        end
     end
 
     return SPELLSTATE_NOT_TRIGGERED
