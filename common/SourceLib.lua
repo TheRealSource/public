@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.018
+local version = 1.019
 
 --[[
 
@@ -120,7 +120,7 @@ function LazyUpdater:CheckUpdate()
     -- Validate callback
     callback = callback and type(callback) == "function" and callback or nil
 
-    local webResult = GetWebResult(self.UPDATE_HOST, self.UPDATE_PATH, "", 5)
+    local webResult = GetWebResult(self.UPDATE_HOST, self.UPDATE_PATH)
     if webResult then
         self.SERVER_VERSION = string.match(webResult, "%s*local%s+version%s+=%s+.*%d+%.%d+")
         if self.SERVER_VERSION then
