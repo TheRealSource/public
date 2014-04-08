@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.019
+local version = 1.020
 
 --[[
 
@@ -1413,7 +1413,7 @@ function SimpleTS:__init(mode)
 end
 
 function SimpleTS:IsValid(target, range, selected)
-    if ValidTarget(target) and GetDistanceSqr(target) <= range then
+    if ValidTarget(target) and (GetDistanceSqr(target) <= range or (self.hitboxmode and (GetDistanceSqr(target) <= (math.sqrt(range) + self.VP:GetHitBox(myHero) + self.VP:GetHitBox(target)) ^ 2))) then
         if selected or (not (HasBuff(target, "UndyingRage") and (target.health == 1)) and not HasBuff(target, "JudicatorIntervention")) then
             return true
         end
@@ -1422,7 +1422,7 @@ end
 
 function SimpleTS:AddToMenu(menu)
     self.menu = menu
-    self.menu:addSubMenu("Target Selector", "STS")
+    self.menu:addSubMenu("Target Priority", "STS")
     for i, target in ipairs(GetEnemyHeroes()) do
         if not self.menu.STS[target.charName] then --avoid errors in one for all
             self.menu.STS:addParam(target.charName, target.charName, SCRIPT_PARAM_SLICE, 1, 1, 5, 1)
