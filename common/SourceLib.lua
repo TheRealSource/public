@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.020
+local version = 1.021
 
 --[[
 
@@ -32,6 +32,7 @@ local version = 1.020
         the same tweaks then.
 
     Contents:
+        Require         -- A basic but powerful library downloader
         LazyUpdater     -- One of the most basic functions for every script we use
         Spell           -- Spells handled the way they should be handled
         DrawManager     -- Easy drawing of all kind of things, comes along with some other classes such as Circle
@@ -39,6 +40,90 @@ local version = 1.020
         STS             -- SimpleTargetSelector is a simple and yet powerful target selector to provide very basic target selecting
 
 ]]
+
+--[[
+
+'||''|.                              ||                  
+ ||   ||    ....    ... .  ... ...  ...  ... ..    ....  
+ ||''|'   .|...|| .'   ||   ||  ||   ||   ||' '' .|...|| 
+ ||   |.  ||      |.   ||   ||  ||   ||   ||     ||      
+.||.  '|'  '|...' '|..'||   '|..'|. .||. .||.     '|...' 
+                       ||                                
+                      ''''                               
+
+    Require - A simple library downloader
+
+    Introduction:
+        If you want to use this class you need to put this at the beginning of you script.
+        Example:
+            -------------------------------------
+            if player.charName ~= "Brand" then return end
+            require "SourceLib"
+
+            local libDownloader = Require("Brand script")
+            libDownloader:Add("VPrediction", "https://bitbucket.org/honda7/bol/raw/master/Common/VPrediction.lua")
+            libDownloader:Add("SOW",         "https://bitbucket.org/honda7/bol/raw/master/Common/SOW.lua")
+            libDownloader:Check()
+
+            if libDownloader.downloadNeeded then return end
+            -------------------------------------
+
+    Functions:
+        Require(myName)
+
+    Members:
+        Require.downloadNeeded
+
+    Methods:
+        Require:Add(name, url)
+        Require:Check()
+]]
+class 'Require'
+
+function __require_afterDownload(requireInstance)
+
+    requireInstance.downloadCount = requireInstance.downloadCount - 1
+    if requireInstance.downloadCount == 0 then
+        print("<font color=\"#6699ff\"><b>" .. requireInstance.myName .. ":</b></font> <font color=\"#FFFFFF\">Required libraries downloaded! Please reload!</font>")
+    end
+
+end
+
+function Require:__init(myName)
+
+    self.myName = myName or GetCurrentEnv().FILE_NAME
+    self.downloadNeeded = false
+
+    self.requirements = {}
+
+end
+
+function Require:Add(name, url)
+
+    assert(name and type(name) == "string" and url and type(url) == "string", "Require:Add(): Some or all arguments are invalid.")
+    
+    self.requirements[name] = url
+
+    return self
+
+end
+
+function Require:Check()
+
+    for scriptName, scriptUrl in pairs(self.requirements) do
+        local scriptFile = LIB_PATH .. scriptName .. ".lua"
+        if FileExist(scriptFile) then
+            require(scriptName)
+        else
+            self.downloadNeeded = true
+            self.downloadCount = self.downloadCount and self.downloadCount + 1 or 1
+            DownloadFile(scriptUrl, scriptFile, __require_afterDownload(self))
+        end
+    end
+
+    return self
+
+end
 
 --[[
 
