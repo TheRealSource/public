@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.021
+local version = 1.022
 
 --[[
 
@@ -124,6 +124,7 @@ function Require:Check()
     return self
 
 end
+
 
 --[[
 
@@ -975,6 +976,7 @@ end
         _Circle:SetMinimap()
         _Circle:SetQuality(qualtiy)
         _Circle:SetDrawCondition(condition)
+        _Circle:LinkWithSpell(spell, drawWhenReady)
         _Circle:Draw()
 
 ]]
@@ -1154,12 +1156,35 @@ function _Circle:SetDrawCondition(condition)
 end
 
 --[[
+    Links the spell range with the circle radius
+
+    @param spell         | class | Instance of Spell class
+    @param drawWhenReady | bool  | Decides whether to draw the circle when the spell is ready or not
+    @return              | class | The current instance
+]]
+function _Circle:LinkWithSpell(spell, drawWhenReady)
+
+    assert(spell, "_Circle:LinkWithSpell(): spell is invalid")
+    self._linkedSpell = spell
+    self._linkedSpellReady = drawWhenReady or false
+    return self
+
+end
+
+--[[
     Draw this circle, should only be called from OnDraw()
 ]]
 function _Circle:Draw()
 
     -- Don't draw if condition is not met
     if self.condition ~= nil and self.condition() == false then return end
+
+    -- Update values if linked spell is given
+    if self._linkedSpell then
+        if self._linkedSpellReady and not self._linkedSpell:IsReady() then return end
+        -- Update the radius with the spell range
+        self.radius = self._linkedSpell.range
+    end
 
     -- Menu found
     if self.menu then 
