@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.024
+local version = 1.025
 
 --[[
 
@@ -38,6 +38,7 @@ local version = 1.024
         DrawManager     -- Easy drawing of all kind of things, comes along with some other classes such as Circle
         DamageLib       -- Calculate the damage done do others and even print it on their healthbar
         STS             -- SimpleTargetSelector is a simple and yet powerful target selector to provide very basic target selecting
+        MenuWrapper     -- Easy menu creation with only a few lines!
 
 ]]
 
@@ -470,7 +471,6 @@ function Spell:SetCharged(spellName, chargeDuration, maxRange, timeToMaxRange, a
     self.__charged_spellName = spellName
     self.__charged_duration  = chargeDuration
 
-    self.__charged_initialRange   = self.range
     self.__charged_maxRange       = maxRange
     self.__charged_chargeTime     = timeToMaxRange
     self.__charged_abortCondition = abortCondition or function () return false end
@@ -955,10 +955,11 @@ function Spell:OnProcessSpell(unit, spell)
 
         -- Charged spells
         if self.__charged and self.__charged_spellName:lower() == spell.name:lower() then
-            self.__charged_active   = true
-            self.__charged_aborted  = false
-            self.__charged_castTime = os.clock()
-            self.__charged_count    = self.__charged_count and self.__charged_count + 1 or 1
+            self.__charged_active       = true
+            self.__charged_aborted      = false
+            self.__charged_initialRange = self.range
+            self.__charged_castTime     = os.clock()
+            self.__charged_count        = self.__charged_count and self.__charged_count + 1 or 1
             DelayAction(function(chargeCount)
                 if self.__charged_count == chargeCount then
                     self:_AbortCharge()
@@ -1796,6 +1797,156 @@ function Item:Cast(param1, param2)
     end
 
 end
+
+
+--[[
+
+'||    ||'                           '|| '||'  '|'                                                   
+ |||  |||    ....  .. ...   ... ...   '|. '|.  .'  ... ..   ....   ... ...  ... ...    ....  ... ..  
+ |'|..'||  .|...||  ||  ||   ||  ||    ||  ||  |    ||' '' '' .||   ||'  ||  ||'  || .|...||  ||' '' 
+ | '|' ||  ||       ||  ||   ||  ||     ||| |||     ||     .|' ||   ||    |  ||    | ||       ||     
+.|. | .||.  '|...' .||. ||.  '|..'|.     |   |     .||.    '|..'|'  ||...'   ||...'   '|...' .||.    
+                                                                    ||       ||                      
+                                                                   ''''     ''''                     
+
+    MenuWrapper - Keep it simple!
+
+    Introduction:
+        If you want to use the MenuWrapper you must create your menu with it! You cannot add this class to
+        an existing menu. Once you have created a new instance, make sure you remember the follwing:
+            - Target selector sub-menu name: ts
+            - Orbwalker sub-menu name:       orbwalker
+            - Drawings sub-menu name:        drawings
+        If you want to use these sub menus, simply use something like this:
+            MenuWrapper:GetHandle().drawings:addParam("info", "This has been created using MenuWrapper!", SCRIPT_PARAM_INFO, "")
+        This means you can get the scriptConfig instance of the wrapped menu by using this:
+            local myMenu = MenuWrapper:GetHandle()
+
+    Functions:
+        MenuWrapper(menuName, menuId)
+
+    Methods:
+        MenuWrapper:SetTargetSelector(targetSelector)
+        MenuWrapper:SetOrbwalker(orbwalker)
+        MenuWrapper:AddCircle(circle, addColor, addWidth, addQuality)
+        MenuWrapper:AddCircles(circleTable, addColor, addWidth, addQuality)
+        MenuWrapper:GetHandle()
+
+]]
+class 'MenuWrapper'
+
+--[[
+    Create a new MenuWrapper instance
+
+    @param menuName | string | Display name of the menu
+    @param menuId   | string | (optional) ID of the menu (for saving purposes)
+]]
+function MenuWrapper:__init(menuName, menuId)
+
+    assert(menuName and type(menuName) == "string", "MenuWrapper: menuName is invalid!")
+
+    self.__menu = scriptConfig(menuName, menuId or menuName)
+
+end
+
+--[[
+    Adds a SimpleTS instance to the menu.
+
+    @param targetSelector | class | SimpleTS instance
+    @return               | class | scriptConfig target selector sub-menu
+]]
+function MenuWrapper:SetTargetSelector(targetSelector)
+
+    assert(targetSelector, "MenuWrapper:SetTargetSelector(): targetSelector is not a valid SimpleTS instance!")
+    assert(self.__targetSelector == nil, "MenuWrapper:SetTargetSelector(): targetSelector was already set!")
+
+    self.__targetSelector = targetSelector
+    self.__menu:addSubMenu("Target Selector", "ts")
+    self.__targetSelector:AddToMenu(self.__menu.ts)
+
+    return self.__menu.ts
+
+end
+
+--[[
+    Adds a SOW instance to the menu
+
+    @param orbwalker | class | SOW instance
+    @return          | class | scritpConfig orbwalker sub-menu
+]]
+function MenuWrapper:SetOrbwalker(orbwalker)
+
+    assert(orbwalker, "MenuWrapper:SetOrbwalker(): orbwalker is not a valid SOW instance!")
+    assert(self.__orbwalker == nil, "MenuWrapper:SetOrbwalker(): orwalker was already set!")
+
+    self.__orbwalker = orbwalker
+    self.__menu:addSubMenu("Orbwalker", "orbwalker")
+    self.__orbwalker:LoadToMenu(self.__menu.orbwalker)
+
+    return self.__menu.orbwalker
+
+end
+
+--[[
+    Adds a circle to the drawings sub-menu
+
+    @param circle      | class | _Circle instance
+    @param addColor    | bool  | (optional) Add color option
+    @param addWidth    | bool  | (optional) Add width option
+    @param addQuality  | bool  | (optional) Add quality option
+    @return            | class | scriptConfig drawings sub-menu
+]]
+function MenuWrapper:AddCircle(circle, name, addColor, addWidth, addQuality)
+    return self:AddCircles({ [1] = { circle = circle, name = name } }, addColor, addWidth, addQuality)
+end
+
+--[[
+    Adds a table of circles to the drawings sub-menu
+
+    @param circleTable | table | Table containing _Circle instances
+    @param addColor    | bool  | (optional) Add color option
+    @param addWidth    | bool  | (optional) Add width option
+    @param addQuality  | bool  | (optional) Add quality option
+    @return            | class | scriptConfig drawings sub-menu
+]]
+function MenuWrapper:AddCircles(circleTable, addColor, addWidth, addQuality)
+
+    assert(circleTable and type(circleTable) == "table", "MenuWrapper:AddCircles(): circleTable is not a valid table!")
+
+    for _, entry in ipairs(circleTable) do
+
+        assert(entry.circle, "MenuWrapper:AddCircles(): circle is not a valid _Circle instance!")
+        assert(entry.name, "MenuWarpper:AddCircles(): circle name was not given!")
+        assert(self.__circles == nil or table.contains(self.__circles, entry.circle), "MenuWrapper:AddCircles(): The circle was already added!")
+
+        if not self.__circles then
+            self.__circles = {}
+        end
+
+        if not self.__drawing then
+            self.__menu:addSubMenu("Drawings", "drawings")
+            self.__drawing = self.__menu.drawings
+        end
+
+        entry.circle:AddToMenu(self.__drawing, entry.name, addColor, addWidth, addQuality)
+
+        table.insert(self.__circles, entry.circle)
+
+    end
+
+    return self.__drawing
+
+end
+
+--[[
+    Returns the wrapped scriptConfig
+
+    @return | class | scriptConfig instance
+]]
+function MenuWrapper:GetHandle()
+    return self.__menu
+end
+
 
 --[[
 
