@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.025
+local version = 1.026
 
 --[[
 
@@ -38,7 +38,9 @@ local version = 1.025
         DrawManager     -- Easy drawing of all kind of things, comes along with some other classes such as Circle
         DamageLib       -- Calculate the damage done do others and even print it on their healthbar
         STS             -- SimpleTargetSelector is a simple and yet powerful target selector to provide very basic target selecting
-        MenuWrapper     -- Easy menu creation with only a few lines!
+        MenuWrapper     -- Easy menu creation with only a few lines
+        Interrupter     -- Easy way to handle interruptable spells
+        AntiGetcloser   -- Never let them get close to you
 
 ]]
 
@@ -1945,6 +1947,264 @@ end
 ]]
 function MenuWrapper:GetHandle()
     return self.__menu
+end
+
+
+--[[
+
+'||'            .                                               .                   
+ ||  .. ...   .||.    ....  ... ..  ... ..  ... ...  ... ...  .||.    ....  ... ..  
+ ||   ||  ||   ||   .|...||  ||' ''  ||' ''  ||  ||   ||'  ||  ||   .|...||  ||' '' 
+ ||   ||  ||   ||   ||       ||      ||      ||  ||   ||    |  ||   ||       ||     
+.||. .||. ||.  '|.'  '|...' .||.    .||.     '|..'|.  ||...'   '|.'  '|...' .||.    
+                                                      ||                            
+                                                     ''''                           
+
+    Interrupter - They will never cast!
+
+    Like alwasy undocumented by honda...
+]]
+class 'Interrupter'
+
+local _INTERRUPTIBLE_SPELLS = {
+    ["KatarinaR"]                  = { charName = "Katarina",     DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["Meditate"]                   = { charName = "MasterYi",     DangerLevel = 1, MaxDuration = 2.5, CanMove = false },
+    ["Drain"]                      = { charName = "FiddleSticks", DangerLevel = 3, MaxDuration = 2.5, CanMove = false },
+    ["Crowstorm"]                  = { charName = "FiddleSticks", DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["GalioIdolOfDurand"]          = { charName = "Galio",        DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["MissFortuneBulletTime"]      = { charName = "MissFortune",  DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["VelkozR"]                    = { charName = "Velkoz",       DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["InfiniteDuress"]             = { charName = "Warwick",      DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["AbsoluteZero"]               = { charName = "Nunu",         DangerLevel = 4, MaxDuration = 2.5, CanMove = false },
+    ["ShenStandUnited"]            = { charName = "Shen",         DangerLevel = 3, MaxDuration = 2.5, CanMove = false },
+    ["FallenOne"]                  = { charName = "Karthus",      DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["AlZaharNetherGrasp"]         = { charName = "Malzahar",     DangerLevel = 5, MaxDuration = 2.5, CanMove = false }
+}
+
+function Interrupter:__init(menu, cb)
+
+    self.callbacks = {}
+    self.activespells = {}
+    AddTickCallback(function() self:OnTick() end)
+    AddProcessSpellCallback(function(unit, spell) self:OnProcessSpell(unit, spell) end)
+    if menu then
+        self:AddToMenu(menu)
+    end
+    if cb then
+        self:AddCallback(cb)
+    end
+
+end
+
+function Interrupter:AddToMenu(menu)
+
+    assert(menu, "Interrupter: menu can't be nil!")
+    local SpellAdded = false
+    local EnemyChampioncharNames = {}
+    for i, enemy in ipairs(GetEnemyHeroes()) do
+        table.insert(EnemyChampioncharNames, enemy.charName)
+    end
+    menu:addParam("Enabled", "Enabled", SCRIPT_PARAM_ONOFF, true)
+    for spellName, data in pairs(_INTERRUPTIBLE_SPELLS) do
+        if table.contains(EnemyChampioncharNames, data.charName) then
+            menu:addParam(spellName, data.charName.." - "..spellName, SCRIPT_PARAM_ONOFF, true)
+            SpellAdded = true
+        end
+    end
+    if not SpellAdded then
+        menu:addParam("Info", "Info", SCRIPT_PARAM_INFO, "No spell available to interrupt")
+    end
+    self.Menu = menu
+
+end
+
+function Interrupter:AddCallback(cb)
+
+    assert(cb and type(cb) == "function", "Interrupter: callback is invalid!")
+    table.insert(self.callbacks, cb)
+
+end
+
+function Interrupter:TriggerCallbacks(unit, spell)
+
+    for i, callback in ipairs(self.callbacks) do
+        callback(unit, spell)
+    end
+
+end
+
+function Interrupter:OnProcessSpell(unit, spell)
+
+    if not self.Menu.Enabled then return end
+    if unit.team ~= myHero.team then
+        if _INTERRUPTIBLE_SPELLS[spell.name] then
+            local SpellToInterrupt = _INTERRUPTIBLE_SPELLS[spell.name]
+            if (self.Menu and self.Menu[spell.name]) or not self.Menu then
+                local data = {unit = unit, DangerLevel = SpellToInterrupt.DangerLevel, endT = os.clock() + SpellToInterrupt.MaxDuration, CanMove = SpellToInterrupt.CanMove}
+                table.insert(self.activespells, data)
+                self:TriggerCallbacks(data.unit, data)
+            end
+        end
+    end
+
+end
+
+function Interrupter:OnTick()
+
+    for i = #self.activespells, 1, -1 do
+        if self.activespells[i].endT - os.clock() > 0 then
+            self:TriggerCallbacks(self.activespells[i].unit, self.activespells[i])
+        else
+            table.remove(self.activespells, i)
+        end
+    end
+
+end
+
+
+--[[
+
+    |                .    ||   ..|'''.|                           '||                                 
+   |||    .. ...   .||.  ...  .|'     '   ....   ... ...    ....   ||    ...    ....    ....  ... ..  
+  |  ||    ||  ||   ||    ||  ||    .... '' .||   ||'  || .|   ''  ||  .|  '|. ||. '  .|...||  ||' '' 
+ .''''|.   ||  ||   ||    ||  '|.    ||  .|' ||   ||    | ||       ||  ||   || . '|.. ||       ||     
+.|.  .||. .||. ||.  '|.' .||.  ''|...'|  '|..'|'  ||...'   '|...' .||.  '|..|' |'..|'  '|...' .||.    
+                                                  ||                                                  
+                                                 ''''                                                 
+
+    AntiGapcloser - Stay away please, thanks.
+
+    And again undocumented by honda -.-
+]]
+class 'AntiGapcloser'
+
+local _GAPCLOSER_TARGETED, _GAPCLOSER_SKILLSHOT = 1, 2
+--Add only very fast skillshots/targeted spells since vPrediction will handle the slow dashes that will trigger OnDash
+local _GAPCLOSER_SPELLS = {
+    ["AatroxQ"]              = "Aatrox",
+    ["AkaliShadowDance"]     = "Akali",
+    ["Headbutt"]             = "Alistar",
+    ["FioraQ"]               = "Fiora",
+    ["DianaTeleport"]        = "Diana",
+    ["EliseSpiderQCast"]     = "Elise",
+    ["FizzPiercingStrike"]   = "Fizz",
+    ["GragasE"]              = "Gragas",
+    ["HecarimUlt"]           = "Hecarim",
+    ["JarvanIVDragonStrike"] = "JarvanIV",
+    ["IreliaGatotsu"]        = "Irelia",
+    ["JaxLeapStrike"]        = "Jax",
+    ["KhazixE"]              = "KhaZix",
+    ["LeblancSlide"]         = "LeBlanc",
+    ["LeblancSlideM"]        = "LeBlanc",
+    ["BlindMonkQTwo"]        = "LeeSin",
+    ["LeonaZenithBlade"]     = "Leona",
+    ["UFSlash"]              = "Malphite",
+    ["Pantheon_LeapBash"]    = "Pantheon",
+    ["PoppyHeroicCharge"]    = "Poppy",
+    ["RenektonSliceAndDice"] = "Renekton",
+    ["RivenTriCleave"]       = "Riven",
+    ["SejuaniArcticAssault"] = "Sejuani",
+    ["slashCast"]            = "Tryndamere",
+    ["ViQ"]                  = "Vi",
+    ["MonkeyKingNimbus"]     = "MonkeyKing",
+    ["XenZhaoSweep"]         = "XinZhao",
+    ["YasuoDashWrapper"]     = "Yasuo"
+}
+
+function AntiGapcloser:__init(menu, cb)
+
+    self.callbacks = {}
+    self.activespells = {}
+    AddTickCallback(function() self:OnTick() end)
+    AddProcessSpellCallback(function(unit, spell) self:OnProcessSpell(unit, spell) end)
+    if menu then
+        self:AddToMenu(menu)
+    end
+    if cb then
+        self:AddCallback(cb)
+    end
+
+end
+
+function AntiGapcloser:AddToMenu(menu)
+
+    assert(menu, "AntiGapcloser: menu can't be nil!")
+    local SpellAdded = false
+    local EnemyChampioncharNames = {}
+    for i, enemy in ipairs(GetEnemyHeroes()) do
+        table.insert(EnemyChampioncharNames, enemy.charName)
+    end
+    menu:addParam("Enabled", "Enabled", SCRIPT_PARAM_ONOFF, true)
+    for spellName, charName in pairs(_GAPCLOSER_SPELLS) do
+        if table.contains(EnemyChampioncharNames, charName) then
+            menu:addParam(spellName, charName.." - "..spellName, SCRIPT_PARAM_ONOFF, true)
+            SpellAdded = true
+        end
+    end
+    if not SpellAdded then
+        menu:addParam("Info", "Info", SCRIPT_PARAM_INFO, "No spell available to interrupt")
+    end
+    self.Menu = menu
+
+end
+
+function AntiGapcloser:AddCallback(cb)
+
+    assert(cb and type(cb) == "function", "AntiGapcloser: callback is invalid!")
+    table.insert(self.callbacks, cb)
+
+end
+
+function AntiGapcloser:TriggerCallbacks(unit, spell)
+
+    for i, callback in ipairs(self.callbacks) do
+        callback(unit, spell)
+    end
+
+end
+
+function AntiGapcloser:OnProcessSpell(unit, spell)
+
+    if not self.Menu.Enabled then return end
+    if unit.team ~= myHero.team then
+        if _GAPCLOSER_SPELLS[spell.name] then
+            local Gapcloser = _GAPCLOSER_SPELLS[spell.name]
+            if (self.Menu and self.Menu[spell.name]) or not self.Menu then
+                local add = false
+                if spell.target and spell.target.isMe then
+                    add = true
+                    startPos = Vector(unit.visionPos)
+                    endPos = myHero
+                elseif not spell.target then
+                    local endPos1 = Vector(unit.visionPos) + 300 * (Vector(spell.endPos) - Vector(unit.visionPos)):normalized()
+                    local endPos2 = Vector(unit.visionPos) + 100 * (Vector(spell.endPos) - Vector(unit.visionPos)):normalized()
+                    --TODO check angles etc
+                    if (GetDistanceSqr(myHero.visionPos, unit.visionPos) > GetDistanceSqr(myHero.visionPos, endPos1) or GetDistanceSqr(myHero.visionPos, unit.visionPos) > GetDistanceSqr(myHero.visionPos, endPos2))  then
+                        add = true
+                    end
+                end
+
+                if add then
+                    local data = {unit = unit, spell = spell.name, startT = os.clock(), endT = os.clock() + 1, startPos = startPos, endPos = endPos}
+                    table.insert(self.activespells, data)
+                    self:TriggerCallbacks(data.unit, data)
+                end
+            end
+        end
+    end
+
+end
+
+function AntiGapcloser:OnTick()
+
+    for i = #self.activespells, 1, -1 do
+        if self.activespells[i].endT - os.clock() > 0 then
+            self:TriggerCallbacks(self.activespells[i].unit, self.activespells[i])
+        else
+            table.remove(self.activespells, i)
+        end
+    end
+
 end
 
 
