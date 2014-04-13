@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.023
+local version = 1.024
 
 --[[
 
@@ -1862,8 +1862,8 @@ function GetEnemyHPBarPos(enemy)
 
     local BarPosOffsetX = 169
     local BarPosOffsetY = 47
-    local CorrectionX = -63
-    local CorrectionY = -27
+    local CorrectionX = 16
+    local CorrectionY = 4
 
     barPos.x = barPos.x + (barPosOffset.x - 0.5 + barPosPercentageOffset.x) * BarPosOffsetX + CorrectionX
     barPos.y = barPos.y + (barPosOffset.y - 0.5 + barPosPercentageOffset.y) * BarPosOffsetY + CorrectionY 
@@ -2023,7 +2023,7 @@ end
 
 -- Set enemy bar data
 for i, enemy in ipairs(GetEnemyHeroes()) do
-    enemy.barData = GetEnemyBarData()
+    enemy.barData = {PercentageOffset = {x = 0, y = 0} }--GetEnemyBarData()--spadge pls
 end
 
 --Summoner spells
