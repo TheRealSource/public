@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.022
+local version = 1.023
 
 --[[
 
@@ -258,21 +258,32 @@ end
         Spell:SetSource(source)
         Spell:SetSourcePosition(source)
         Spell:SetSourceRange(source)
+
         Spell:SetSkillshot(VP, skillshotType, width, delay, speed, collision)
         Spell:SetAOE(useAoe, radius, minTargetsAoe)
+
+        Spell:SetCharged(spellName, chargeDuration, maxRange, timeToMaxRange, abortCondition)
+        Spell:IsCharging()
+        Spell:Charge()
+
         Spell:SetHitChance(hitChance)
         Spell:ValidTarget(target)
+
         Spell:GetPrediction(target)
         Spell:CastIfDashing(target)
         Spell:CastIfImmobile(target)
         Spell:Cast(param1, param2)
+
         Spell:AddAutomation(automationId, func)
         Spell:RemoveAutomation(automationId)
         Spell:ClearAutomations()
+
         Spell:TrackCasting(spellName)
         Spell:WillHitTarget()
         Spell:RegisterCastCallback(func)
+
         Spell:GetLastCastTime()
+
         Spell:IsInRange(target, from)
         Spell:IsReady()
         Spell:GetManaUsage()
@@ -299,38 +310,6 @@ SPELLSTATE_DASHING_CANT_HIT   = 6
 SPELLSTATE_NOT_IMMOBILE       = 7
 SPELLSTATE_INVALID_TARGET     = 8
 SPELLSTATE_NOT_TRIGGERED      = 9
-
--- Spell automations
-local __spell_automations = nil
-function __spell_OnTick()
-    for index, spell in ipairs(__spell_automations) do
-        if #spell._automations == 0 then
-            table.remove(__spell_automations, index)
-        else
-            for _, automation in ipairs(spell._automations) do
-                local doCast, param1, param2 = automation.func()
-                if doCast == true then
-                    spell:Cast(param1, param2)
-                end
-            end
-        end
-    end
-end
-
--- Spell tracking
-local __spell_trackedSpells = nil
-function __spell_OnProcSpell(unit, spell)
-    if #__spell_trackedSpells > 0 and unit and unit.valid and unit.isMe and spell and spell.name then
-        for index, spell in ipairs(__spell_trackedSpells) do
-            if sell._spellName and spell._spellName == spell.name then
-                spell._lastCastTime = os.clock()
-                spell._castCallback(spell)
-            elseif not spell._spellName then
-                table.remove(__spell_trackedSpells, index)
-            end
-        end
-    end
-end
 
 -- Spell identifier number used for comparing spells
 local spellNum = 1
@@ -469,6 +448,85 @@ function Spell:SetAOE(useAoe, radius, minTargetsAoe)
 
     return self
 
+end
+
+--[[
+    Define this spell as charged spell
+
+    @param spellName      | string   | Name of the spell, example: VarusQ
+    @param chargeDuration | float    | Seconds of the spell to charge, after the time the charge expires
+    @param maxRage        | float    | Max range the spell will have after fully charging
+    @param timeToMaxRange | float    | Time in seconds to reach max range after casting the spell
+    @param abortCondition | function | (optional) A function which returns true when the charge process should be stopped.
+]]
+function Spell:SetCharged(spellName, chargeDuration, maxRange, timeToMaxRange, abortCondition)
+
+    assert(self.skillshotType, "Spell:SetCharged(): Only skillshots can be defined as charged spells!")
+    assert(spellName and type(spellName) == "string" and chargeDuration and type(chargeDuration) == "number", "Spell:SetCharged(): Some or all arguments are invalid!")
+    assert(self.__charged == nil, "Spell:SetCharged(): Already marked as charged spell!")
+
+    self.__charged           = true
+    self.__charged_aborted   = true
+    self.__charged_spellName = spellName
+    self.__charged_duration  = chargeDuration
+
+    self.__charged_initialRange   = self.range
+    self.__charged_maxRange       = maxRange
+    self.__charged_chargeTime     = timeToMaxRange
+    self.__charged_abortCondition = abortCondition or function () return false end
+
+    self.__charged_active   = false
+    self.__charged_castTime = 0
+
+    -- Register callbacks
+    if not self.__tickCallback then
+        AddTickCallback(function() self:OnTick() end)
+        self.__tickCallback = true
+    end
+
+    if not self.__sendPacketCallback then
+        AddSendPacketCallback(function(p) self:OnSendPacket(p) end)
+        self.__sendPacketCallback = true
+    end
+
+    if not self.__processSpellCallback then
+        AddProcessSpellCallback(function(unit, spell) self:OnProcessSpell(unit, spell) end)
+        self.__processSpellCallback = true
+    end
+
+    return self
+
+end
+
+--[[
+    Returns whether the spell is currently charging or not
+
+    @return | bool | Spell charging or not
+]]
+function Spell:IsCharging()
+    return self.__charged_abortCondition() == false and self.__charged_active
+end
+
+--[[
+    Charges the spell
+]]
+function Spell:Charge()
+
+    assert(self.__charged, "Spell:Charge(): Spell is not defined as chargeable spell!")
+
+    if not self:IsCharging() then
+        Packet("S_CAST", {spellId = self.spellId}):send()
+    end
+
+end
+
+-- Internal function, do not use!
+function Spell:_AbortCharge()
+    if self.__charged and self.__charged_active then
+        self.__charged_aborted = true
+        self.__charged_active  = false
+        self:SetRange(self.__charged_initialRange)
+    end
 end
 
 --[[
@@ -714,16 +772,11 @@ function Spell:AddAutomation(automationId, func)
 
     table.insert(self._automations, { id == automationId, func = func })
 
-    if not __spell_automations then
-        __spell_automations = {}
-        AddTickCallback(__spell_OnTick)
+    -- Register callbacks
+    if not self.__tickCallback then
+        AddTickCallback(function() self:OnTick() end)
+        self.__tickCallback = true
     end
-
-    for index, spell in ipairs(__spell_automations) do
-        if spell == self then return end
-    end
-
-    table.insert(__spell_automations, self)
 
 end
 
@@ -764,12 +817,11 @@ function Spell:TrackCasting(spellName)
 
     self._spellName = spellName
 
-    if __spell_trackedSpells == nil then
-        __spell_trackedSpells = {}
-        AddProcessSpellCallback(__spell_OnProcSpell)
+    -- Register callbacks
+    if not self.__processSpellCallback then
+        AddProcessSpellCallback(function(unit, spell) self:OnProcessSpell(unit, spell) end)
+        self.__processSpellCallback = true
     end
-
-    table.insert(__spell_trackedSpells, self)
 
     return self
 
@@ -860,6 +912,93 @@ end
 ]]
 function Spell:GetName()
     return player:GetSpellData(self.spellId).name
+end
+
+--[[
+    Internal callback, don't use this!
+]]
+function Spell:OnTick()
+
+    -- Automations
+    if self._automations and #self._automations > 0 then
+        for _, automation in ipairs(self._automations) do
+            local doCast, param1, param2 = automation.func()
+            if doCast == true then
+                self:Cast(param1, param2)
+            end
+        end
+    end
+
+    -- Charged spells
+    if self.__charged then
+        if self:IsCharging() then
+            self:SetRange(math.min(self.__charged_initialRange + (self.__charged_maxRange - self.__charged_initialRange) * ((os.clock() - self.__charged_castTime) / self.__charged_chargeTime), self.__charged_maxRange))
+        elseif not self.__charged_aborted and os.clock() - self.__charged_castTime > 0.1 then
+            self:_AbortCharge()
+        end
+    end
+
+end
+
+--[[
+    Internal callback, don't use this!
+]]
+function Spell:OnProcessSpell(unit, spell)
+
+    if unit and unit.valid and unit.isMe and spell and spell.name then
+
+        -- Tracked spells
+        if self._spellName and self._spellName:lower() == spell.name:lower() then
+            self._lastCastTime = os.clock()
+            self._castCallback(spell)
+        end
+
+        -- Charged spells
+        if self.__charged and self.__charged_spellName:lower() == spell.name:lower() then
+            self.__charged_active   = true
+            self.__charged_aborted  = false
+            self.__charged_castTime = os.clock()
+            self.__charged_count    = self.__charged_count and self.__charged_count + 1 or 1
+            DelayAction(function(chargeCount)
+                if self.__charged_count == chargeCount then
+                    self:_AbortCharge()
+                end
+            end, self.__charged_duration, { self.__charged_count })
+        end
+
+    end
+
+end
+
+--[[
+    Internal callback, don't use this!
+]]
+function Spell:OnSendPacket(p)
+
+    -- Charged spells
+    if self.__charged then
+        if p.header == 229 then
+            if os.clock() - self.__charged_castTime <= 0.1 then
+                p:Block()
+            end
+        elseif p.header == Packet.headers.S_CAST then
+            local packet = Packet(p)
+            if packet:get("spellId") == self.spellId then
+                if os.clock() - self.__charged_castTime <= self.__charged_duration then
+                    self:_AbortCharge()
+                    local newPacket = CLoLPacket(229)
+                    newPacket:EncodeF(player.networkID)
+                    newPacket:Encode1(0x80)
+                    newPacket:EncodeF(mousePos.x)
+                    newPacket:EncodeF(mousePos.y)
+                    newPacket:EncodeF(mousePos.z)
+                    SendPacket(newPacket)
+                    p:Block()
+                end
+            end
+        end
+    end
+
 end
 
 function Spell:__eq(other)
@@ -1677,6 +1816,21 @@ function _GetDistanceSqr(p1, p2)
     if p2 and p2.networkID and (p2.networkID ~= 0) and p2.visionPos then p2 = p2.visionPos end
     return AllClassGetDistanceSqr(p1, p2)
     
+end
+
+function GetObjectsAround(radius, position, condition)
+
+    radius = math.pow(radius, 2)
+    position = position or player
+    local objectsAround = {}
+    for i = 1, objManager.maxObjects do
+        local object = objManager:getObject(i)
+        if object and object.valid and (condition and condition(object) == true or not condition) and GetDistanceSqr(position, object) <= radius then
+            table.insert(objectsAround, object)
+        end
+    end
+    return objectsAround
+
 end
 
 function HasBuff(unit, buffname)
