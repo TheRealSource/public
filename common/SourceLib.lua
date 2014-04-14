@@ -7,7 +7,14 @@ local version = 1.030
 
 --[[
 
-    LazyLib - a common library by Team TheSource
+      _________                                 .____    ._____.    
+     /   _____/ ____  __ _________   ____  ____ |    |   |__\_ |__  
+     \_____  \ /  _ \|  |  \_  __ \_/ ___\/ __ \|    |   |  || __ \ 
+     /        (  <_> )  |  /|  | \/\  \__\  ___/|    |___|  || \_\ \
+    /_______  /\____/|____/ |__|    \___  >___  >_______ \__||___  /
+            \/                          \/    \/        \/       \/ 
+
+    SourceLib - a common library by Team TheSource
     Copyright (C) 2014  Team TheSource
 
     This program is free software: you can redistribute it and/or modify
