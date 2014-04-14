@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.029
+local version = 1.030
 
 --[[
 
@@ -2177,7 +2177,7 @@ function AntiGapcloser:OnProcessSpell(unit, spell)
     if unit.team ~= myHero.team then
         if _GAPCLOSER_SPELLS[spell.name] then
             local Gapcloser = _GAPCLOSER_SPELLS[spell.name]
-            if (self.Menu and self.Menu[string.gsub(spellName, "_", "")]) or not self.Menu then
+            if (self.Menu and self.Menu[string.gsub(spell.name, "_", "")]) or not self.Menu then
                 local add = false
                 if spell.target and spell.target.isMe then
                     add = true
