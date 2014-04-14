@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.031
+local version = 1.032
 
 --[[
 
@@ -1675,6 +1675,8 @@ STS_AVAILABLE_MODES = {STS_NEARMOUSE, STS_LESS_CAST_MAGIC, STS_LESS_CAST_PHYSICA
 
 function SimpleTS:__init(mode)
     self.mode = mode and mode or STS_LESS_CAST_PHYSICAL
+    AddDrawCallback(function() self:OnDraw() end)
+    AddMsgCallback(function(msg, key) self:OnMsg(msg, key) end)
 end
 
 function SimpleTS:IsValid(target, range, selected)
@@ -1708,11 +1710,35 @@ function SimpleTS:AddToMenu(menu)
     STS_MENU = self.menu
 end
 
+function SimpleTS:OnMsg(msg, key)
+    if msg == WM_LBUTTONDOWN then
+        local MinimumDistance = math.huge
+        local SelectedTarget
+        for i, enemy in ipairs(GetEnemyHeroes()) do
+            if ValidTarget(enemy) then
+                if GetDistanceSqr(enemy, mousePos) <= MinimumDistance then
+                    MinimumDistance = GetDistanceSqr(enemy, mousePos)
+                    SelectedTarget = enemy
+                end
+            end
+        end
+        if SelectedTarget and MinimumDistance < 150 * 150 then
+            self.STarget = SelectedTarget
+        else
+            self.STarget = nil
+        end
+    end
+end
+
+function SimpleTS:SelectedTarget()
+    return self.STarget
+end
+
 function SimpleTS:GetTarget(range, n, forcemode)
     assert(range, "SimpleTS: range can't be nil")
     range = range * range
     local PosibleTargets = {}
-    local selected = GetTarget()
+    local selected = self:SelectedTarget()
 
     if self.menu then
         self.mode = STS_AVAILABLE_MODES[self.menu.mode]
@@ -1731,6 +1757,12 @@ function SimpleTS:GetTarget(range, n, forcemode)
     return PosibleTargets[n and n or 1]
 end
 
+function SimpleTS:OnDraw()
+    local selected = self:SelectedTarget()
+    if self.menu and self.menu.Selected and ValidTarget(selected) then
+        DrawCircle3D(selected.x, selected.y, selected.z, 100, 2, ARGB(175, 0, 255, 0), 25)
+    end
+end
 
 class "_ItemManager"
 function _ItemManager:__init()
