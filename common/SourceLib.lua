@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.026
+local version = 1.027
 
 --[[
 
@@ -1967,18 +1967,20 @@ end
 class 'Interrupter'
 
 local _INTERRUPTIBLE_SPELLS = {
-    ["KatarinaR"]                  = { charName = "Katarina",     DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
-    ["Meditate"]                   = { charName = "MasterYi",     DangerLevel = 1, MaxDuration = 2.5, CanMove = false },
-    ["Drain"]                      = { charName = "FiddleSticks", DangerLevel = 3, MaxDuration = 2.5, CanMove = false },
-    ["Crowstorm"]                  = { charName = "FiddleSticks", DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
-    ["GalioIdolOfDurand"]          = { charName = "Galio",        DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
-    ["MissFortuneBulletTime"]      = { charName = "MissFortune",  DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
-    ["VelkozR"]                    = { charName = "Velkoz",       DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
-    ["InfiniteDuress"]             = { charName = "Warwick",      DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
-    ["AbsoluteZero"]               = { charName = "Nunu",         DangerLevel = 4, MaxDuration = 2.5, CanMove = false },
-    ["ShenStandUnited"]            = { charName = "Shen",         DangerLevel = 3, MaxDuration = 2.5, CanMove = false },
-    ["FallenOne"]                  = { charName = "Karthus",      DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
-    ["AlZaharNetherGrasp"]         = { charName = "Malzahar",     DangerLevel = 5, MaxDuration = 2.5, CanMove = false }
+    ["KatarinaR"]                          = { charName = "Katarina",     DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["Meditate"]                           = { charName = "MasterYi",     DangerLevel = 1, MaxDuration = 2.5, CanMove = false },
+    ["Drain"]                              = { charName = "FiddleSticks", DangerLevel = 3, MaxDuration = 2.5, CanMove = false },
+    ["Crowstorm"]                          = { charName = "FiddleSticks", DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["GalioIdolOfDurand"]                  = { charName = "Galio",        DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["MissFortuneBulletTime"]              = { charName = "MissFortune",  DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["VelkozR"]                            = { charName = "Velkoz",       DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["InfiniteDuress"]                     = { charName = "Warwick",      DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["AbsoluteZero"]                       = { charName = "Nunu",         DangerLevel = 4, MaxDuration = 2.5, CanMove = false },
+    ["ShenStandUnited"]                    = { charName = "Shen",         DangerLevel = 3, MaxDuration = 2.5, CanMove = false },
+    ["FallenOne"]                          = { charName = "Karthus",      DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["AlZaharNetherGrasp"]                 = { charName = "Malzahar",     DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+    ["Pantheon_GrandSkyfall_Jump"]         = { charName = "Pantheon",     DangerLevel = 5, MaxDuration = 2.5, CanMove = false },
+
 }
 
 function Interrupter:__init(menu, cb)
@@ -2007,7 +2009,7 @@ function Interrupter:AddToMenu(menu)
     menu:addParam("Enabled", "Enabled", SCRIPT_PARAM_ONOFF, true)
     for spellName, data in pairs(_INTERRUPTIBLE_SPELLS) do
         if table.contains(EnemyChampioncharNames, data.charName) then
-            menu:addParam(spellName, data.charName.." - "..spellName, SCRIPT_PARAM_ONOFF, true)
+            menu:addParam(string.gsub(spellName, "_", ""), data.charName.." - "..spellName, SCRIPT_PARAM_ONOFF, true)
             SpellAdded = true
         end
     end
@@ -2039,7 +2041,7 @@ function Interrupter:OnProcessSpell(unit, spell)
     if unit.team ~= myHero.team then
         if _INTERRUPTIBLE_SPELLS[spell.name] then
             local SpellToInterrupt = _INTERRUPTIBLE_SPELLS[spell.name]
-            if (self.Menu and self.Menu[spell.name]) or not self.Menu then
+            if (self.Menu and self.Menu[string.gsub(spell.name, "_", "")]) or not self.Menu then
                 local data = {unit = unit, DangerLevel = SpellToInterrupt.DangerLevel, endT = os.clock() + SpellToInterrupt.MaxDuration, CanMove = SpellToInterrupt.CanMove}
                 table.insert(self.activespells, data)
                 self:TriggerCallbacks(data.unit, data)
@@ -2137,7 +2139,7 @@ function AntiGapcloser:AddToMenu(menu)
     menu:addParam("Enabled", "Enabled", SCRIPT_PARAM_ONOFF, true)
     for spellName, charName in pairs(_GAPCLOSER_SPELLS) do
         if table.contains(EnemyChampioncharNames, charName) then
-            menu:addParam(spellName, charName.." - "..spellName, SCRIPT_PARAM_ONOFF, true)
+            menu:addParam(string.gsub(spellName, "_", ""), charName.." - "..spellName, SCRIPT_PARAM_ONOFF, true)
             SpellAdded = true
         end
     end
@@ -2169,7 +2171,7 @@ function AntiGapcloser:OnProcessSpell(unit, spell)
     if unit.team ~= myHero.team then
         if _GAPCLOSER_SPELLS[spell.name] then
             local Gapcloser = _GAPCLOSER_SPELLS[spell.name]
-            if (self.Menu and self.Menu[spell.name]) or not self.Menu then
+            if (self.Menu and self.Menu[string.gsub(spellName, "_", "")]) or not self.Menu then
                 local add = false
                 if spell.target and spell.target.isMe then
                     add = true
