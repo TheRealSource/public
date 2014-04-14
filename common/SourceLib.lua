@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.030
+local version = 1.031
 
 --[[
 
@@ -1932,7 +1932,7 @@ function MenuWrapper:AddCircles(circleTable, addColor, addWidth, addQuality)
 
         assert(entry.circle, "MenuWrapper:AddCircles(): circle is not a valid _Circle instance!")
         assert(entry.name, "MenuWarpper:AddCircles(): circle name was not given!")
-        assert(self.__circles == nil or table.contains(self.__circles, entry.circle), "MenuWrapper:AddCircles(): The circle was already added!")
+        assert(self.__circles == nil or not table.contains(self.__circles, entry.circle), "MenuWrapper:AddCircles(): The circle was already added!")
 
         if not self.__circles then
             self.__circles = {}
