@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.027
+local version = 1.028
 
 --[[
 
@@ -815,9 +815,11 @@ end
 ]]
 function Spell:TrackCasting(spellName)
 
-    assert(spellName and type(spellName) == "string" and self._spellName == nil, "Spell: spellName is invalid or already registered!")
+    assert(spellName, "Spell:TrackCasting(): spellName is invalid!")
+    assert(self.__tracked_spellNames == nil, "Spell:TrackCasting(): This spell is already tracked!")
+    assert(type(spellName) == "string" or type(spellName) == "table", "Spell:TrackCasting(): Type of spellName is invalid: " .. type(spellName))
 
-    self._spellName = spellName
+    self.__tracked_spellNames = type(spellName) == "table" and spellName or { spellName }
 
     -- Register callbacks
     if not self.__processSpellCallback then
@@ -847,9 +849,9 @@ end
 ]]
 function Spell:RegisterCastCallback(func)
 
-    assert(func and type(func) == "function" and self._castCallback == nil, "Spell: func is either invalid or a callback is already registered!")
+    assert(func and type(func) == "function" and self.__tracked_castCallback == nil, "Spell:RegisterCastCallback(): func is either invalid or a callback is already registered!")
 
-    self._castCallback = func
+    self.__tracked_castCallback = func
 
 end
 
@@ -859,7 +861,7 @@ end
     @return | float | Time in seconds when the spell was last casted or nil if the spell was never casted or spell is not tracked
 ]]
 function Spell:GetLastCastTime()
-    return self._lastCastTime
+    return self.__tracked_lastCastTime
 end
 
 --[[
@@ -950,9 +952,13 @@ function Spell:OnProcessSpell(unit, spell)
     if unit and unit.valid and unit.isMe and spell and spell.name then
 
         -- Tracked spells
-        if self._spellName and self._spellName:lower() == spell.name:lower() then
-            self._lastCastTime = os.clock()
-            self._castCallback(spell)
+        if self.__tracked_spellNames then
+        	for _, trackedSpell in ipairs(self.__tracked_spellNames) do
+	        	if trackedSpell:lower() == spell.name:lower() then
+		            self.__tracked_lastCastTime = os.clock()
+		            self.__tracked_castCallback(spell)
+		        end
+		    end
         end
 
         -- Charged spells
