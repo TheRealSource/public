@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.028
+local version = 1.029
 
 --[[
 
@@ -861,7 +861,7 @@ end
     @return | float | Time in seconds when the spell was last casted or nil if the spell was never casted or spell is not tracked
 ]]
 function Spell:GetLastCastTime()
-    return self.__tracked_lastCastTime
+    return self.__tracked_lastCastTime or 0
 end
 
 --[[
@@ -953,12 +953,12 @@ function Spell:OnProcessSpell(unit, spell)
 
         -- Tracked spells
         if self.__tracked_spellNames then
-        	for _, trackedSpell in ipairs(self.__tracked_spellNames) do
-	        	if trackedSpell:lower() == spell.name:lower() then
-		            self.__tracked_lastCastTime = os.clock()
-		            self.__tracked_castCallback(spell)
-		        end
-		    end
+            for _, trackedSpell in ipairs(self.__tracked_spellNames) do
+                if trackedSpell:lower() == spell.name:lower() then
+                    self.__tracked_lastCastTime = os.clock()
+                    self.__tracked_castCallback(spell)
+                end
+            end
         end
 
         -- Charged spells
