@@ -808,10 +808,10 @@ function Spell:ClearAutomations()
 end
 
 --[[
-    Track the spell like in OnProcessSpell to add more features to Spell
+    Track the spell like in OnProcessSpell to add more features to this Spell instance
 
-    @param spellName | string | Case sensitive name of the spell
-    @return          | class  | The current instance
+    @param spellName | string/table | Case insensitive name(s) of the spell
+    @return          | class        | The current instance
 ]]
 function Spell:TrackCasting(spellName)
 
