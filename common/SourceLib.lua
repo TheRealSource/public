@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.032
+local version = 1.033
 
 --[[
 
@@ -179,7 +179,7 @@ class 'LazyUpdater'
 function LazyUpdater:__init(scriptName, version, host, hostPath, filePath)
 
     self.printMessage = function(message) if not self.silent then print("<font color=\"#6699ff\"><b>" .. self.UPDATE_SCRIPT_NAME .. ":</b></font> <font color=\"#FFFFFF\">" .. message .. "</font>") end end
-    self.getVersion = function(version) return tonumber(string.match(version, "%d+%.%d+")) end
+    self.getVersion = function(version) return tonumber(string.match(version, "%d+%.?%d*")) end
 
     self.UPDATE_SCRIPT_NAME = scriptName
     self.UPDATE_HOST = host
