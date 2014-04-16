@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.033
+local version = 1.034
 
 --[[
 
@@ -1635,6 +1635,10 @@ function DamageLib:DrawIndicator(enemy)
 
     local damage = self.cachedDamage[enemy.hash] or 0
     local SPos, EPos = GetEnemyHPBarPos(enemy)
+
+    -- Validate data
+    if not SPos then return end
+
     local barwidth = EPos.x - SPos.x
     local Position = SPos.x + math.max(0, (enemy.health - damage) / enemy.maxHealth) * barwidth
 
@@ -2312,6 +2316,15 @@ function GetSummonerSlot(name, unit)
 end
 
 function GetEnemyHPBarPos(enemy)
+
+	-- Prevent error spamming
+	if not enemy.barData then
+		if not _G.__sourceLib_barDataInformed then
+			print("SourceLib: barData was not found, spudgy please...")
+			_G.__sourceLib_barDataInformed = true
+		end
+		return
+	end
 
     local barPos = GetUnitHPBarPos(enemy)
     local barPosOffset = GetUnitHPBarOffset(enemy)
