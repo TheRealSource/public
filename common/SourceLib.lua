@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.034
+local version = 1.035
 
 --[[
 
@@ -1696,7 +1696,7 @@ function SimpleTS:AddToMenu(menu)
     self.menu:addSubMenu("Target Priority", "STS")
     for i, target in ipairs(GetEnemyHeroes()) do
         if not self.menu.STS[target.charName] then --avoid errors in one for all
-            self.menu.STS:addParam(target.charName, target.charName, SCRIPT_PARAM_SLICE, 1, 1, 5, 1)
+            self.menu.STS:addParam(target.charName, target.charName, SCRIPT_PARAM_SLICE, 1, 1, 5, 0)
         end
     end
     self.menu.STS:addParam("Info", "Info", SCRIPT_PARAM_INFO, "5 Highest priority")
