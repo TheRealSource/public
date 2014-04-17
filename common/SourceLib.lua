@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.035
+local version = 1.036
 
 --[[
 
@@ -2144,7 +2144,7 @@ local _GAPCLOSER_SPELLS = {
     ["JarvanIVDragonStrike"] = "JarvanIV",
     ["IreliaGatotsu"]        = "Irelia",
     ["JaxLeapStrike"]        = "Jax",
-    ["KhazixE"]              = "KhaZix",
+    ["KhazixE"]              = "Khazix",
     ["LeblancSlide"]         = "LeBlanc",
     ["LeblancSlideM"]        = "LeBlanc",
     ["BlindMonkQTwo"]        = "LeeSin",
@@ -2269,6 +2269,18 @@ end
 
     Util - Just utils.
 ]]
+
+function ProtectTable(t)
+	local proxy = {}
+	local mt = {
+	__index = t,
+	__newindex = function (t,k,v)
+		error('attempt to update a read-only table', 2)
+		end
+	}
+	setmetatable(proxy, mt)
+	return proxy
+end
 
 AllClassGetDistanceSqr = GetDistanceSqr
 function _GetDistanceSqr(p1, p2)
