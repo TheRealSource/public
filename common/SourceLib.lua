@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.037
+local version = 1.038
 
 --[[
 
@@ -2144,6 +2144,7 @@ local _GAPCLOSER_SPELLS = {
     ["JarvanIVDragonStrike"] = "JarvanIV",
     ["IreliaGatotsu"]        = "Irelia",
     ["JaxLeapStrike"]        = "Jax",
+    ["KhazixE"]              = "Khazix",
     ["khazixelong"]          = "Khazix",
     ["LeblancSlide"]         = "LeBlanc",
     ["LeblancSlideM"]        = "LeBlanc",
