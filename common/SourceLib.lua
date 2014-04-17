@@ -2271,6 +2271,7 @@ end
 ]]
 
 function ProtectTable(t)
+
 	local proxy = {}
 	local mt = {
 	__index = t,
@@ -2280,6 +2281,7 @@ function ProtectTable(t)
 	}
 	setmetatable(proxy, mt)
 	return proxy
+
 end
 
 AllClassGetDistanceSqr = GetDistanceSqr
