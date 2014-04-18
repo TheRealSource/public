@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.044
+local version = 1.045
 
 --[[
 
@@ -1687,10 +1687,10 @@ end
 class 'SimpleTS'
 
 function STS_GET_PRIORITY(target)
-    if not STS_MENU or not STS_MENU.STS[target.charName] then
+    if not STS_MENU or not STS_MENU.STS[target.hash] then
         return 1
     else
-        return STS_MENU.STS[target.charName]
+        return STS_MENU.STS[target.hash]
     end
 end
 
@@ -1720,9 +1720,7 @@ function SimpleTS:AddToMenu(menu)
     self.menu = menu
     self.menu:addSubMenu("Target Priority", "STS")
     for i, target in ipairs(GetEnemyHeroes()) do
-        if not self.menu.STS[target.charName] then --avoid errors in one for all
-            self.menu.STS:addParam(target.charName, target.charName, SCRIPT_PARAM_SLICE, 1, 1, 5, 0)
-        end
+            self.menu.STS:addParam(target.hash, target.charName, SCRIPT_PARAM_SLICE, 1, 1, 5, 0)
     end
     self.menu.STS:addParam("Info", "Info", SCRIPT_PARAM_INFO, "5 Highest priority")
 
