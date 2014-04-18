@@ -184,7 +184,7 @@ function LazyUpdater:__init(scriptName, version, host, updatePath, filePath, ver
 
     self.UPDATE_SCRIPT_NAME = scriptName
     self.UPDATE_HOST = host
-    self.UPDATE_PATH = hostPath .. "?rand="..math.random(1,10000)
+    self.UPDATE_PATH = updatePath .. "?rand="..math.random(1,10000)
     self.UPDATE_URL = "https://"..self.UPDATE_HOST..self.UPDATE_PATH
 
     -- Used for version files
