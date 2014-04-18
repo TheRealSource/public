@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.041
+local version = 1.042
 
 --[[
 
@@ -171,10 +171,15 @@ class 'SourceUpdater'
 -- Deprecated LazyUpdater
 class 'LazyUpdater'
 function LazyUpdater:__init(scriptName, version, host, updatePath, filePath, versionPath)
-
     print("LazyUpdater is deprecated and will be removed soon! Use SourceUpdater instead!")
-    return SourceUpdater(scriptName, version, host, updatePath, filePath, versionPath)
-
+    self.updater = SourceUpdater(scriptName, version, host, updatePath, filePath, versionPath)
+end
+function LazyUpdater:SetSilent(silent)
+    self.updater.silent = silent
+end
+function LazyUpdater:CheckUpdate()
+    self.updater.silent = self.silent
+    self.updater:CheckUpdate()
 end
 
 --[[
@@ -199,7 +204,7 @@ function SourceUpdater:__init(scriptName, version, host, updatePath, filePath, v
 
     -- Used for version files
     self.VERSION_PATH = versionPath
-    self.VERSION_URL = versionPath and "https://"..self.UPDATE_HOST..self.VERSION_PATH
+    self.VERSION_URL = versionPath and "https://"..self.UPDATE_HOST..self.VERSION_PATH .. "?rand="..math.random(1,10000)
 
     self.UPDATE_FILE_PATH = filePath
 
