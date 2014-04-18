@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.040
+local version = 1.041
 
 --[[
 
@@ -40,7 +40,7 @@ local version = 1.040
 
     Contents:
         Require         -- A basic but powerful library downloader
-        LazyUpdater     -- One of the most basic functions for every script we use
+        SourceUpdater   -- One of the most basic functions for every script we use
         Spell           -- Spells handled the way they should be handled
         DrawManager     -- Easy drawing of all kind of things, comes along with some other classes such as Circle
         DamageLib       -- Calculate the damage done do others and even print it on their healthbar
@@ -138,15 +138,16 @@ end
 
 --[[
 
-'||'                               '||'  '|'               '||            .                   
- ||        ....   ......  .... ...  ||    |  ... ...     .. ||   ....   .||.    ....  ... ..  
- ||       '' .||  '  .|'   '|.  |   ||    |   ||'  ||  .'  '||  '' .||   ||   .|...||  ||' '' 
- ||       .|' ||   .|'      '|.|    ||    |   ||    |  |.   ||  .|' ||   ||   ||       ||     
-.||.....| '|..'|' ||....|    '|      '|..'    ||...'   '|..'||. '|..'|'  '|.'  '|...' .||.    
-                          .. |                ||                                              
-                           ''                ''''                                             
+ .|'''.|                                           '||'  '|'               '||            .                   
+ ||..  '    ...   ... ...  ... ..    ....    ....   ||    |  ... ...     .. ||   ....   .||.    ....  ... ..  
+  ''|||.  .|  '|.  ||  ||   ||' '' .|   '' .|...||  ||    |   ||'  ||  .'  '||  '' .||   ||   .|...||  ||' '' 
+.     '|| ||   ||  ||  ||   ||     ||      ||       ||    |   ||    |  |.   ||  .|' ||   ||   ||       ||     
+|'....|'   '|..|'  '|..'|. .||.     '|...'  '|...'   '|..'    ||...'   '|..'||. '|..'|'  '|.'  '|...' .||.    
+                                                              ||                                              
+                                                             ''''                                             
 
-    LazyUpdater - a simple updater class
+
+    SourceUpdater - a simple updater class
 
     Introduction:
         Scripts that want to use this class need to have a version field at the beginning of the script, like this:
@@ -155,20 +156,29 @@ end
         chars of the file, otherwise the webresult won't see the field, as it gathers only about 100 chars
 
     Functions:
-        LazyUpdater(scriptName, version, host, updatePath, filePath, versionPath)
+        SourceUpdater(scriptName, version, host, updatePath, filePath, versionPath)
 
     Members:
-        LazyUpdater.silent | bool | Defines wheather to print notifications or not
+        SourceUpdater.silent | bool | Defines wheather to print notifications or not
 
     Methods:
-        LazyUpdater:SetSilent(silent)
-        LazyUpdater:CheckUpdate()
+        SourceUpdater:SetSilent(silent)
+        SourceUpdater:CheckUpdate()
 
 ]]
+class 'SourceUpdater'
+
+-- Deprecated LazyUpdater
 class 'LazyUpdater'
+function LazyUpdater:__init(scriptName, version, host, updatePath, filePath, versionPath)
+
+    print("LazyUpdater is deprecated and will be removed soon! Use SourceUpdater instead!")
+    return SourceUpdater(scriptName, version, host, updatePath, filePath, versionPath)
+
+end
 
 --[[
-    Create a new instance of LazyUpdater
+    Create a new instance of SourceUpdater
 
     @param scriptName  | string        | Name of the script which should be used when printed in chat
     @param version     | float/string  | Current version of the script
@@ -177,7 +187,7 @@ class 'LazyUpdater'
     @param filePath    | string        | Path to the file which should be replaced when updating the script
     @param versionPath | string        | (optional) Path to a version file to check against. The version file may only contain the version.
 ]]
-function LazyUpdater:__init(scriptName, version, host, updatePath, filePath, versionPath)
+function SourceUpdater:__init(scriptName, version, host, updatePath, filePath, versionPath)
 
     self.printMessage = function(message) if not self.silent then print("<font color=\"#6699ff\"><b>" .. self.UPDATE_SCRIPT_NAME .. ":</b></font> <font color=\"#FFFFFF\">" .. message .. "</font>") end end
     self.getVersion = function(version) return tonumber(string.match(version, "%d+%.?%d*")) end
@@ -206,7 +216,7 @@ end
     @param  | bool   | Message output or not
     @return | class  | The current instance
 ]]
-function LazyUpdater:SetSilent(silent)
+function SourceUpdater:SetSilent(silent)
 
     self.silent = silent
     return self
@@ -216,7 +226,7 @@ end
 --[[
     Check for an update and downloads it when available
 ]]
-function LazyUpdater:CheckUpdate()
+function SourceUpdater:CheckUpdate()
 
     -- Validate callback
     callback = callback and type(callback) == "function" and callback or nil
@@ -2510,9 +2520,11 @@ end
 
 ]]
 
+-- We are currently moving to GitHub, gimme a sec to create a repo over there ;)
+
 -- Update script
 if autoUpdate then
-    LazyUpdater("SourceLib", version, "bitbucket.org", "/TheRealSource/public/raw/master/common/SourceLib.lua", LIB_PATH .. "SourceLib.lua"):SetSilent(silentUpdate):CheckUpdate()
+    SourceUpdater("SourceLib", version, "raw.githubusercontent.com", "/TheRealSource/public/master/common/SourceLib.lua", LIB_PATH .. "SourceLib.lua", "/TheRealSource/public/master/common/SourceLib.version"):SetSilent(silentUpdate):CheckUpdate()
 end
 
 -- Set enemy bar data
