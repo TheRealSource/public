@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.042
+local version = 1.043
 
 --[[
 
@@ -204,8 +204,8 @@ function SourceUpdater:__init(scriptName, version, host, updatePath, filePath, v
     self.UPDATE_URL = "https://"..self.UPDATE_HOST..self.UPDATE_PATH
 
     -- Used for version files
-    self.VERSION_PATH = versionPath
-    self.VERSION_URL = versionPath and "https://"..self.UPDATE_HOST..self.VERSION_PATH .. "?rand="..math.random(1,10000)
+    self.VERSION_PATH = versionPath and versionPath .. "?rand="..math.random(1,10000)
+    self.VERSION_URL = versionPath and "https://"..self.UPDATE_HOST..self.VERSION_PATH
 
     self.UPDATE_FILE_PATH = filePath
 
@@ -237,7 +237,7 @@ function SourceUpdater:CheckUpdate()
     -- Validate callback
     callback = callback and type(callback) == "function" and callback or nil
 
-    local webResult = GetWebResult(self.UPDATE_HOST, self.VERSION_PATH and self.VERSION_URL or self.UPDATE_URL)
+    local webResult = GetWebResult(self.UPDATE_HOST, self.VERSION_PATH or self.UPDATE_PATH)
     if webResult then
         if self.VERSION_PATH then
             self.SERVER_VERSION = webResult
