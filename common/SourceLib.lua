@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.039
+local version = 1.040
 
 --[[
 
@@ -155,7 +155,7 @@ end
         chars of the file, otherwise the webresult won't see the field, as it gathers only about 100 chars
 
     Functions:
-        LazyUpdater(scriptName, version, hostPath, filePath)
+        LazyUpdater(scriptName, version, host, updatePath, filePath, versionPath)
 
     Members:
         LazyUpdater.silent | bool | Defines wheather to print notifications or not
@@ -170,13 +170,14 @@ class 'LazyUpdater'
 --[[
     Create a new instance of LazyUpdater
 
-    @param scriptName | string        | Name of the script which should be used when printed in chat
-    @param version    | float/string  | Current version of the script
-    @param host       | string        | Host, for example "bitbucket.org" or "raw.github.com"
-    @param hostPath   | string        | Raw path to the script which should be updated
-    @param filePath   | string        | Path to the file which should be replaced when updating the script
+    @param scriptName  | string        | Name of the script which should be used when printed in chat
+    @param version     | float/string  | Current version of the script
+    @param host        | string        | Host, for example "bitbucket.org" or "raw.github.com"
+    @param updatePath  | string        | Raw path to the script which should be updated
+    @param filePath    | string        | Path to the file which should be replaced when updating the script
+    @param versionPath | string        | (optional) Path to a version file to check against. The version file may only contain the version.
 ]]
-function LazyUpdater:__init(scriptName, version, host, hostPath, filePath)
+function LazyUpdater:__init(scriptName, version, host, updatePath, filePath, versionPath)
 
     self.printMessage = function(message) if not self.silent then print("<font color=\"#6699ff\"><b>" .. self.UPDATE_SCRIPT_NAME .. ":</b></font> <font color=\"#FFFFFF\">" .. message .. "</font>") end end
     self.getVersion = function(version) return tonumber(string.match(version, "%d+%.?%d*")) end
@@ -184,13 +185,17 @@ function LazyUpdater:__init(scriptName, version, host, hostPath, filePath)
     self.UPDATE_SCRIPT_NAME = scriptName
     self.UPDATE_HOST = host
     self.UPDATE_PATH = hostPath .. "?rand="..math.random(1,10000)
-    self.UPDATE_FILE_PATH = filePath
     self.UPDATE_URL = "https://"..self.UPDATE_HOST..self.UPDATE_PATH
+
+    -- Used for version files
+    self.VERSION_PATH = versionPath
+    self.VERSION_URL = versionPath and "https://"..self.UPDATE_HOST..self.VERSION_PATH
+
+    self.UPDATE_FILE_PATH = filePath
 
     self.FILE_VERSION = self.getVersion(version)
     self.SERVER_VERSION = nil
 
-    -- Members
     self.silent = false
 
 end
@@ -216,9 +221,13 @@ function LazyUpdater:CheckUpdate()
     -- Validate callback
     callback = callback and type(callback) == "function" and callback or nil
 
-    local webResult = GetWebResult(self.UPDATE_HOST, self.UPDATE_PATH)
+    local webResult = GetWebResult(self.UPDATE_HOST, self.VERSION_PATH and self.VERSION_URL or self.UPDATE_URL)
     if webResult then
-        self.SERVER_VERSION = string.match(webResult, "%s*local%s+version%s+=%s+.*%d+%.%d+")
+        if self.VERSION_PATH then
+            self.SERVER_VERSION = webResult
+        else
+            self.SERVER_VERSION = string.match(webResult, "%s*local%s+version%s+=%s+.*%d+%.%d+")
+        end
         if self.SERVER_VERSION then
             self.SERVER_VERSION = self.getVersion(self.SERVER_VERSION)
             if self.FILE_VERSION < self.SERVER_VERSION then
