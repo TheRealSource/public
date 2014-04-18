@@ -176,6 +176,7 @@ function LazyUpdater:__init(scriptName, version, host, updatePath, filePath, ver
 end
 function LazyUpdater:SetSilent(silent)
     self.updater.silent = silent
+    return self
 end
 function LazyUpdater:CheckUpdate()
     self.updater.silent = self.silent
