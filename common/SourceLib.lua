@@ -2326,16 +2326,16 @@ TickLimiter -- TODO: ASCII this :p
     Starts TickLimiter instance
 
     @param func       | function | The function to be called
-    @param frecuency  | integer  | The times the function will called per second.
+    @param frequency  | integer  | The times the function will called per second.
 ]]
 class "TickLimiter"
 
-function TickLimiter:__init(func, frecuency)
-    assert(frecuency and frecuency ~= 0, "TickLimiter: frecuency is invalid!")
+function TickLimiter:__init(func, frequency)
+    assert(frecuency and frecuency > 0, "TickLimiter: frecuency is invalid!")
     assert(func and type(func) == "function", "TickLimiter: func is invalid!")
 
     self.lasttick = 0
-    self.interval = 1 / frecuency
+    self.interval = 1 / frequency
 
     self.func = func
     AddTickCallback(function() self:OnTick() end)
