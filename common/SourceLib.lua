@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.043
+local version = 1.044
 
 --[[
 
@@ -127,7 +127,7 @@ function Require:Check()
         else
             self.downloadNeeded = true
             self.downloadCount = self.downloadCount and self.downloadCount + 1 or 1
-            DownloadFile(scriptUrl, scriptFile, __require_afterDownload(self))
+            DownloadFile(scriptUrl, scriptFile, function() __require_afterDownload(self) end)
         end
     end
 
