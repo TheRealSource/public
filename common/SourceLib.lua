@@ -2331,7 +2331,7 @@ TickLimiter -- TODO: ASCII this :p
 class "TickLimiter"
 
 function TickLimiter:__init(func, frequency)
-    assert(frecuency and frecuency > 0, "TickLimiter: frecuency is invalid!")
+    assert(frequency and frequency > 0, "TickLimiter: frecuency is invalid!")
     assert(func and type(func) == "function", "TickLimiter: func is invalid!")
 
     self.lasttick = 0
