@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.045
+local version = 1.046
 
 --[[
 
@@ -1474,6 +1474,10 @@ function DamageLib:__init(source)
     self.sources = {}
     self.source = source or player
 
+    --Damage multiplicators:
+    self.Magic_damage_m    = 1
+    self.Physical_damage_m = 1
+
     -- Most common damage sources
     self:RegisterDamageSource(_IGNITE, _TRUE, 0, 0, _TRUE, _AP, 0, function() return _IGNITE and (self.source:CanUseSpell(_IGNITE) == READY) end, function() return (50 + 20 * self.source.level) end)
     self:RegisterDamageSource(ItemManager:GetItem("DFG"):GetId(), _MAGIC, 0, 0, _MAGIC, _AP, 0, function() return ItemManager:GetItem("DFG"):GetSlot() and (self.source:CanUseSpell(ItemManager:GetItem("DFG"):GetSlot()) == READY) end, function(target) return 0.15 * target.maxHealth end)
@@ -1521,9 +1525,9 @@ function DamageLib:GetScalingDamage(target, scalingtype, scalingstat, percentsca
     local amount = (_ScalingFunctions[scalingstat] or function() return 0 end)(percentscaling, self)
 
     if scalingtype == _MAGIC then
-        return self.source:CalcMagicDamage(target, amount)
+        return self.Magic_damage_m * self.source:CalcMagicDamage(target, amount)
     elseif scalingtype == _PHYSICAL then
-        return self.source:CalcDamage(target, amount)
+        return self.Physical_damage_m * self.Physical_damage_m * self.source:CalcDamage(target, amount)
     elseif scalingtype == _TRUE then
         return amount
     end
@@ -1554,10 +1558,10 @@ function DamageLib:GetTrueDamage(target, spell, damagetype, basedamage, perlevel
     end
 
     if damagetype == _MAGIC then
-        return self.source:CalcMagicDamage(target, basedamage + perlevel * self.source:GetSpellData(spell).level + extra(target)) + ScalingDamage
+        return self.Magic_damage_m * self.source:CalcMagicDamage(target, basedamage + perlevel * self.source:GetSpellData(spell).level + extra(target)) + ScalingDamage
     end
     if damagetype == _PHYSICAL then
-        return self.source:CalcDamage(target, basedamage + perlevel * self.source:GetSpellData(spell).level + extra(target)) + ScalingDamage
+        return self.Physical_damage_m * self.source:CalcDamage(target, basedamage + perlevel * self.source:GetSpellData(spell).level + extra(target)) + ScalingDamage
     end
     if damagetype == _TRUE then
         return basedamage + perlevel * self.source:GetSpellData(spell).level + extra(target) + ScalingDamage
@@ -1592,9 +1596,18 @@ end
 function DamageLib:CalcComboDamage(target, combo)
 
     local totaldamage = 0
+
+    for i, spell in ipairs(combo) do
+        if spell == ItemManager:GetItem("DFG"):GetId() and ItemManager:GetItem("DFG"):IsReady() then
+            self.Magic_damage_m = 1.2
+        end
+    end
+
     for i, spell in ipairs(combo) do
         totaldamage = totaldamage + self:CalcSpellDamage(target, spell)
     end
+
+    self.Magic_damage_m = 1
 
     return totaldamage
 
