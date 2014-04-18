@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.046
+local version = 1.047
 
 --[[
 
@@ -1065,6 +1065,7 @@ end
 
     Methods:
         DrawManager:AddCircle(circle)
+        DrawManager:RemoveCircle(circle)
         DrawManager:CreateCircle(position, radius, width, color)
         DrawManager:OnDraw()
 
@@ -1084,6 +1085,8 @@ end
 
 --[[
     Add an existing circle to the draw manager
+
+    @param circle | class | _Circle instance
 ]]
 function DrawManager:AddCircle(circle)
 
@@ -1094,6 +1097,23 @@ function DrawManager:AddCircle(circle)
     end
 
     table.insert(self.objects, circle)
+
+end
+
+--[[
+    Removes a circle from the draw manager
+
+    @param circle | class | _Circle instance
+]]
+function DrawManager:RemoveCircle(circle)
+
+    assert(circle, "DrawManager:RemoveCircle(): circle is invalid!")
+
+    for index, object in ipairs(self.objects) do
+        if object == circle then
+            table.remove(self.objects, index)
+        end
+    end
 
 end
 
