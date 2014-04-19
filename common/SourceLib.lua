@@ -1403,7 +1403,7 @@ function _Circle:Draw()
     end
 
     local center = WorldToScreen(D3DXVECTOR3(self.position.x, self.position.y, self.position.z))
-    if not self:PointOnScreen(center.x, center.y) then
+    if not self:PointOnScreen(center.x, center.y) and self.mode ~= CIRCLE_MINIMAP then
         return
     end
 
