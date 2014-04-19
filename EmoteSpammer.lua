@@ -100,10 +100,10 @@ end
 
 function OnTick()
 
-	if menu.enabled and menu.type == 2 and os.clock() - lastEmote >= menu.interval then
-		lastEmote = os.clock()
+    if menu.enabled and menu.type == 2 and os.clock() - lastEmote >= menu.interval then
+        lastEmote = os.clock()
         SendEmote()
-	end
+    end
 
 end
 

@@ -67,11 +67,11 @@ local lastSend = 0
 
 function OnLoad()
 
-	if not _G.sourceMenu then
-		_G.sourceMenu = scriptConfig("[Source] Tools", "sourceTools")
-	end
-	_G.sourceMenu:addSubMenu(scriptName, scriptName)
-	menu = _G.sourceMenu[scriptName]
+    if not _G.sourceMenu then
+        _G.sourceMenu = scriptConfig("[Source] Tools", "sourceTools")
+    end
+    _G.sourceMenu:addSubMenu(scriptName, scriptName)
+    menu = _G.sourceMenu[scriptName]
 
     menu:addParam("enabled",  "Enabled",                  SCRIPT_PARAM_ONOFF, false)
     menu:addParam("sep",      "",                         SCRIPT_PARAM_INFO,  "")
@@ -81,10 +81,10 @@ end
 
 function OnSendPacket(p)
 
-	if menu.enabled and p.header == Packet.headers.S_MOVE and os.clock() - lastSend >= menu.interval then
+    if menu.enabled and p.header == Packet.headers.S_MOVE and os.clock() - lastSend >= menu.interval then
         lastSend = os.clock()
     else
-    	p:Block()
+        p:Block()
     end
 
 end
