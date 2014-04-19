@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.002
+local version = 0.003
 
 --[[
 
@@ -76,6 +76,8 @@ function OnLoad()
     menu:addParam("random",   "Spam randomly!",       SCRIPT_PARAM_ONOFF, false)
     menu:addParam("block",    "Block packet locally", SCRIPT_PARAM_ONOFF, true)
     menu:addParam("sep",      "",                     SCRIPT_PARAM_INFO,  "")
+    menu:addParam("type",     "Spam type:",           SCRIPT_PARAM_LIST,  1, { "Moving", "Always" })
+    menu:addParam("sep",      "",                     SCRIPT_PARAM_INFO,  "")
     menu:addParam("mode",     "Spam emotion:",        SCRIPT_PARAM_LIST,  2, spamTable)
     menu:addParam("interval", "Interval per second",  SCRIPT_PARAM_SLICE, 1, 1, 10, 1)
 
@@ -92,9 +94,18 @@ function SendEmote()
 
 end
 
+function OnTick()
+
+	if menu.enabled and menu.type == 2 and os.clock() - lastEmote >= menu.interval then
+		lastEmote = os.clock()
+        SendEmote()
+	end
+
+end
+
 function OnSendPacket(p)
 
-    if menu.enabled and p.header == Packet.headers.S_MOVE and os.clock() - lastEmote >= menu.interval then
+    if menu.enabled and menu.type == 1 and p.header == Packet.headers.S_MOVE and os.clock() - lastEmote >= menu.interval then
         lastEmote = os.clock()
         SendEmote()
     end
@@ -103,7 +114,7 @@ end
 
 function OnRecvPacket(p)
 
-    if menu.block and p.header == 65 then
+    if menu.enabled and menu.block and p.header == 65 then
         p.pos = 1
         if p:DecodeF() == player.networkID then
             p:Replace1(255,5)
