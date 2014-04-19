@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.001
+local version = 0.002
 
 --[[
 
@@ -65,14 +65,19 @@ _________            .___
 local menu = nil
 local lastEmote = 0
 
+local spamTable = { "Joke", "Laugh", "Taunt" }
+
 function OnLoad()
 
     menu = scriptConfig("EmoteSpammer", "emote_spammer")
 
-    menu:addParam("enabled",  "Enabled",             SCRIPT_PARAM_ONOFF, false)
-    menu:addParam("sep",      "",                    SCRIPT_PARAM_INFO,  "")
-    menu:addParam("mode",     "Spam emotion:",       SCRIPT_PARAM_LIST,  3, { "Taunt", "Joke", "Laugh" })
-    menu:addParam("interval", "Interval per second", SCRIPT_PARAM_SLICE, 1, 1, 10, 1)
+    menu:addParam("enabled",  "Enabled",              SCRIPT_PARAM_ONOFF, false)
+    menu:addParam("sep",      "",                     SCRIPT_PARAM_INFO,  "")
+    menu:addParam("random",   "Spam randomly!",       SCRIPT_PARAM_ONOFF, false)
+    menu:addParam("block",    "Block packet locally", SCRIPT_PARAM_ONOFF, true)
+    menu:addParam("sep",      "",                     SCRIPT_PARAM_INFO,  "")
+    menu:addParam("mode",     "Spam emotion:",        SCRIPT_PARAM_LIST,  2, spamTable)
+    menu:addParam("interval", "Interval per second",  SCRIPT_PARAM_SLICE, 1, 1, 10, 1)
 
 end
 
@@ -81,7 +86,7 @@ function SendEmote()
     local p = CLoLPacket(71)
     p.pos = 1
     p:EncodeF(player.networkID)
-    p:Encode1(menu.mode - 1)
+    p:Encode1(menu.random and math.random(#spamTable) or menu.mode)
     p:Encode1(0)
     SendPacket(p)
 
@@ -98,7 +103,7 @@ end
 
 function OnRecvPacket(p)
 
-    if p.header == 65 then
+    if menu.block and p.header == 65 then
         p.pos = 1
         if p:DecodeF() == player.networkID then
             p:Replace1(255,5)
