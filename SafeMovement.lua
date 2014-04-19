@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.001
+local version = 0.002
 
 --[[
 
@@ -81,10 +81,12 @@ end
 
 function OnSendPacket(p)
 
-    if menu.enabled and p.header == Packet.headers.S_MOVE and os.clock() - lastSend >= menu.interval then
-        lastSend = os.clock()
-    else
-        p:Block()
+    if menu.enabled and p.header == Packet.headers.S_MOVE then
+        if os.clock() - lastSend >= menu.interval then
+            lastSend = os.clock()
+        else
+            p:Block()
+        end
     end
 
 end
