@@ -3,6 +3,7 @@ Champion Scripts
 
 Utility Scripts:
 ------------
+*   \[VIP\] EmoteSpammer - [BOL thread](http://botoflegends.com/forum/topic/18736-utility-emotespammer/).
 
 Libs:
 ------------
