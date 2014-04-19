@@ -3,11 +3,11 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.004
+local version = 0.001
 
 --[[
 
-    EmoteSpammer - by TheSource
+    SafeMovement - by TheSource
     Copyright (C) 2014 TheSource
 
     This program is free software: you can redistribute it and/or modify
@@ -25,7 +25,7 @@ local version = 0.004
 
 ]]
 
-local scriptName = "EmoteSpammer"
+local scriptName = "SafeMovement"
 
 --[[
 .____    ._____.     ________                      .__                    .___            
@@ -49,7 +49,7 @@ if not sourceLibFound then return end
 
 -- Updater
 if autoUpdate then
-    SourceUpdater(scriptName, version, "raw.github.com", "/TheRealSource/public/master/EmoteSpammer.lua", SCRIPT_PATH .. GetCurrentEnv().FILE_NAME, "/TheRealSource/public/master/EmoteSpammer.version"):SetSilent(silentUpdate):CheckUpdate()
+    SourceUpdater(scriptName, version, "raw.github.com", "/TheRealSource/public/master/SafeMovement.lua", SCRIPT_PATH .. GetCurrentEnv().FILE_NAME, "/TheRealSource/public/master/SafeMovement.version"):SetSilent(silentUpdate):CheckUpdate()
 end
 
 
@@ -63,66 +63,28 @@ _________            .___
 ]]
 
 local menu = nil
-local lastEmote = 0
-
-local spamTable = { "Joke", "Laugh", "Taunt" }
+local lastSend = 0
 
 function OnLoad()
 
-    if not _G.sourceMenu then
-        _G.sourceMenu = scriptConfig("[Source] Tools", "sourceTools")
-    end
-    _G.sourceMenu:addSubMenu(scriptName, scriptName)
-    menu = _G.sourceMenu[scriptName]
-
-    menu:addParam("enabled",  "Enabled",              SCRIPT_PARAM_ONOFF, false)
-    menu:addParam("sep",      "",                     SCRIPT_PARAM_INFO,  "")
-    menu:addParam("random",   "Spam randomly!",       SCRIPT_PARAM_ONOFF, false)
-    menu:addParam("block",    "Block packet locally", SCRIPT_PARAM_ONOFF, true)
-    menu:addParam("sep",      "",                     SCRIPT_PARAM_INFO,  "")
-    menu:addParam("type",     "Spam type:",           SCRIPT_PARAM_LIST,  1, { "Moving", "Always" })
-    menu:addParam("sep",      "",                     SCRIPT_PARAM_INFO,  "")
-    menu:addParam("mode",     "Spam emotion:",        SCRIPT_PARAM_LIST,  2, spamTable)
-    menu:addParam("interval", "Interval per second",  SCRIPT_PARAM_SLICE, 1, 1, 10, 1)
-
-end
-
-function SendEmote()
-
-    local p = CLoLPacket(71)
-    p.pos = 1
-    p:EncodeF(player.networkID)
-    p:Encode1(menu.random and math.random(#spamTable) or menu.mode)
-    p:Encode1(0)
-    SendPacket(p)
-
-end
-
-function OnTick()
-
-	if menu.enabled and menu.type == 2 and os.clock() - lastEmote >= menu.interval then
-		lastEmote = os.clock()
-        SendEmote()
+	if not _G.sourceMenu then
+		_G.sourceMenu = scriptConfig("[Source] Tools", "sourceTools")
 	end
+	_G.sourceMenu:addSubMenu(scriptName, scriptName)
+	menu = _G.sourceMenu[scriptName]
+
+    menu:addParam("enabled",  "Enabled",                  SCRIPT_PARAM_ONOFF, false)
+    menu:addParam("sep",      "",                         SCRIPT_PARAM_INFO,  "")
+    menu:addParam("interval", "Movement every x seconds", SCRIPT_PARAM_SLICE, 0.25, 0, 1, 1)
 
 end
 
 function OnSendPacket(p)
 
-    if menu.enabled and menu.type == 1 and p.header == Packet.headers.S_MOVE and os.clock() - lastEmote >= menu.interval then
-        lastEmote = os.clock()
-        SendEmote()
-    end
-
-end
-
-function OnRecvPacket(p)
-
-    if menu.enabled and menu.block and p.header == 65 then
-        p.pos = 1
-        if p:DecodeF() == player.networkID then
-            p:Replace1(255,5)
-        end
+	if menu.enabled and p.header == Packet.headers.S_MOVE and os.clock() - lastSend >= menu.interval then
+        lastSend = os.clock()
+    else
+    	p:Block()
     end
 
 end
