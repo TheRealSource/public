@@ -75,7 +75,7 @@ function OnLoad()
 
     menu:addParam("enabled",  "Enabled",                  SCRIPT_PARAM_ONOFF, false)
     menu:addParam("sep",      "",                         SCRIPT_PARAM_INFO,  "")
-    menu:addParam("interval", "Movement every x seconds", SCRIPT_PARAM_SLICE, 0.25, 0, 1, 1)
+    menu:addParam("interval", "Movement every x seconds", SCRIPT_PARAM_SLICE, 0.2, 0, 1, 1)
 
 end
 
