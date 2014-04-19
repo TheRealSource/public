@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.048
+local version = 1.049
 
 --[[
 
@@ -2361,15 +2361,15 @@ end
 
 function ProtectTable(t)
 
-	local proxy = {}
-	local mt = {
-	__index = t,
-	__newindex = function (t,k,v)
-		error('attempt to update a read-only table', 2)
-		end
-	}
-	setmetatable(proxy, mt)
-	return proxy
+    local proxy = {}
+    local mt = {
+    __index = t,
+    __newindex = function (t,k,v)
+        error('attempt to update a read-only table', 2)
+        end
+    }
+    setmetatable(proxy, mt)
+    return proxy
 
 end
 
@@ -2419,14 +2419,14 @@ end
 
 function GetEnemyHPBarPos(enemy)
 
-	-- Prevent error spamming
-	if not enemy.barData then
-		if not _G.__sourceLib_barDataInformed then
-			print("SourceLib: barData was not found, spudgy please...")
-			_G.__sourceLib_barDataInformed = true
-		end
-		return
-	end
+    -- Prevent error spamming
+    if not enemy.barData then
+        if not _G.__sourceLib_barDataInformed then
+            print("SourceLib: barData was not found, spudgy please...")
+            _G.__sourceLib_barDataInformed = true
+        end
+        return
+    end
 
     local barPos = GetUnitHPBarPos(enemy)
     local barPosOffset = GetUnitHPBarOffset(enemy)
@@ -2467,6 +2467,40 @@ function GetBestCircularFarmPosition(range, radius, objects)
     local BestHit = 0
     for i, object in ipairs(objects) do
         local hit = CountObjectsNearPos(object.visionPos or object, range, radius, objects)
+        if hit > BestHit then
+            BestHit = hit
+            BestPos = Vector(object)
+            if BestHit == #objects then
+               break
+            end
+         end
+    end
+
+    return BestPos, BestHit
+
+end
+
+function CountObjectsOnLineSegment(StartPos, EndPos, width, objects)
+
+    local n = 0
+    for i, object in ipairs(objects) do
+        local pointSegment, pointLine, isOnSegment = VectorPointProjectionOnLineSegment(StartPos, EndPos, object)
+        if isOnSegment and GetDistanceSqr(pointSegment, object) < width * width then
+            n = n + 1
+        end
+    end
+
+    return n
+
+end
+
+function GetBestLineFarmPosition(range, width, objects)
+
+    local BestPos 
+    local BestHit = 0
+    for i, object in ipairs(objects) do
+        local EndPos = Vector(myHero.visionPos) + range * (Vector(object) - Vector(myHero.visionPos)):normalized()
+        local hit = CountObjectsOnLineSegment(myHero.visionPos, EndPos, width, objects)
         if hit > BestHit then
             BestHit = hit
             BestPos = Vector(object)
