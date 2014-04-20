@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.049
+local version = 1.050
 
 --[[
 
@@ -1824,7 +1824,28 @@ function SimpleTS:OnDraw()
     end
 end
 
+
+--[[
+
+'||'   .                      '||    ||'                                                  
+ ||  .||.    ....  .. .. ..    |||  |||   ....   .. ...    ....     ... .   ....  ... ..  
+ ||   ||   .|...||  || || ||   |'|..'||  '' .||   ||  ||  '' .||   || ||  .|...||  ||' '' 
+ ||   ||   ||       || || ||   | '|' ||  .|' ||   ||  ||  .|' ||    |''   ||       ||     
+.||.  '|.'  '|...' .|| || ||. .|. | .||. '|..'|' .||. ||. '|..'|'  '||||.  '|...' .||.    
+                                                                  .|....'                 
+
+    ItemManager - Better handle them properly
+
+    Functions:
+        _ItemManager()
+
+    Methods:
+        _ItemManager:CastOffensiveItems(target)
+        _ItemManager:GetItem(name)
+
+]]
 class "_ItemManager"
+
 function _ItemManager:__init()
     self.items = {
             ["DFG"] = {id = 3128, range = 650, cancastonenemy = true},
@@ -1834,6 +1855,11 @@ function _ItemManager:__init()
     self.requesteditems = {}
 end
 
+--[[
+    Casts all known offensive items on the given target
+
+    @param target | CUnit | Target unit
+]]
 function _ItemManager:CastOffensiveItems(target)
 
     for name, itemdata in pairs(self.items) do
@@ -1845,6 +1871,12 @@ function _ItemManager:CastOffensiveItems(target)
 
 end
 
+--[[
+    Gets the items by name.
+
+    @param name   | string | Name of the item (not the ingame name, the name used when registering, like DFG)
+    @param return | class  | Instance of the item that was requested or nil if not found
+]]
 function _ItemManager:GetItem(name)
     assert(name and self.items[name], "ItemManager: Item not found")
     if not self.requesteditems[name] then
@@ -1853,42 +1885,116 @@ function _ItemManager:GetItem(name)
     return self.requesteditems[name]
 end
 
+-- Make a global ItemManager instance. This means you don't need to make an instance for yourself.
 ItemManager = _ItemManager()
 
+
+--[[
+
+'||'   .                      
+ ||  .||.    ....  .. .. ..   
+ ||   ||   .|...||  || || ||  
+ ||   ||   ||       || || ||  
+.||.  '|.'  '|...' .|| || ||. 
+
+    Item - Best used in ItemManager
+
+    Functions:
+        Item(id, range)
+
+    Methods:
+        Item:GetId()
+        Item:GetRange(sqr)
+        Item:GetSlot()
+        Item:UpdateSlot()
+        Item:IsReady()
+        Item:InRange(target)
+        Item:Cast(param1, param2)
+
+]]
 class "Item"
+
+--[[
+    Create a new instance of Item
+
+    @param id    | integer | Item id 
+    @param range | float   | (optional) Range of the item
+]]
 function Item:__init(id, range)
+
+    assert(id and type(id) == "number", "Item: id is invalid!")
+    assert(not range or range and type(range) == "number", "Item: range is invalid!")
+
     self.id = id
     self.range = range
-    self.rangeSqr = range * range
+    self.rangeSqr = range and range * range
     self.slot = GetInventorySlotItem(id)
+
 end
 
+--[[
+    Returns the id of the item
+
+    @return | integer | Item id
+]]
 function Item:GetId()
     return self.id
 end
 
+--[[
+    Returns the range of the item, only working when the item was defined with a range.
+
+    @param sqr | boolean | Range squared or not
+    @return    | float   | Range of the item
+]]
 function Item:GetRange(sqr)
     return sqr and self.rangeSqr or self.range
 end
 
+--[[
+    Return the slot the item is in
+
+    @return | integer | Slot it
+]]
 function Item:GetSlot()
     self:UpdateSlot()
     return self.slot
 end
 
+--[[
+    Updates the item slot to the current one (if changed)
+]]
 function Item:UpdateSlot()
     self.slot = GetInventorySlotItem(self.id)
 end
 
+--[[
+    Returns if the item is ready to be casted (only working when it's an active item)
+
+    @return | boolean | State of the item
+]]
 function Item:IsReady()
     self:UpdateSlot()
     return self.slot and (player:CanUseSpell(self.slot) == READY)
 end
 
+--[[
+    Returns if the item (actually player) is in range of the target
+
+    @param target | CUnit   | Target unit
+    @return       | boolean | In range or not
+]]
 function Item:InRange(target)
     return _GetDistanceSqr(target) <= self.rangeSqr
 end
 
+--[[
+    Casts the item
+
+    @param param1 | CUnit/float | Either the target unit itself or as part of the position the X coordinate
+    @param param2 | float       | (only use when param1 is given) The Z coordinate
+    @return       | integer     | The spell state
+]]
 function Item:Cast(param1, param2)
 
     self:UpdateSlot()
@@ -2315,12 +2421,22 @@ function AntiGapcloser:OnTick()
 
 end
 
+
 --[[
 
-TickLimiter -- TODO: ASCII this :p
+|''||''|  ||          '||      '||'       ||              ||    .                   
+   ||    ...    ....   ||  ..   ||       ...  .. .. ..   ...  .||.    ....  ... ..  
+   ||     ||  .|   ''  || .'    ||        ||   || || ||   ||   ||   .|...||  ||' '' 
+   ||     ||  ||       ||'|.    ||        ||   || || ||   ||   ||   ||       ||     
+  .||.   .||.  '|...' .||. ||. .||.....| .||. .|| || ||. .||.  '|.'  '|...' .||.    
 
     TickLimiter - Because potato computers also use SourceLib
+
+    Functions:
+        TickLimiter(func, frequency)
+
 ]]
+class 'TickLimiter'
 
 --[[
     Starts TickLimiter instance
@@ -2328,9 +2444,8 @@ TickLimiter -- TODO: ASCII this :p
     @param func       | function | The function to be called
     @param frequency  | integer  | The times the function will called per second.
 ]]
-class "TickLimiter"
-
 function TickLimiter:__init(func, frequency)
+
     assert(frequency and frequency > 0, "TickLimiter: frecuency is invalid!")
     assert(func and type(func) == "function", "TickLimiter: func is invalid!")
 
@@ -2339,14 +2454,134 @@ function TickLimiter:__init(func, frequency)
 
     self.func = func
     AddTickCallback(function() self:OnTick() end)
+
 end
 
+--[[
+    Internal callback
+]]
 function TickLimiter:OnTick()
+
     if os.clock() - self.lasttick >= self.interval then
         self.func()
         self.lasttick = os.clock()
     end
+
 end
+
+
+--[[
+
+'||''|.                  '||                .   '||'  '||'                       '||  '||                  
+ ||   ||  ....     ....   ||  ..    ....  .||.   ||    ||   ....   .. ...      .. ||   ||    ....  ... ..  
+ ||...|' '' .||  .|   ''  || .'   .|...||  ||    ||''''||  '' .||   ||  ||   .'  '||   ||  .|...||  ||' '' 
+ ||      .|' ||  ||       ||'|.   ||       ||    ||    ||  .|' ||   ||  ||   |.   ||   ||  ||       ||     
+.||.     '|..'|'  '|...' .||. ||.  '|...'  '|.' .||.  .||. '|..'|' .||. ||.  '|..'||. .||.  '|...' .||.    
+
+    PacketHandler - Even track all dem packets, not just the easy ones!
+
+    Functions:
+        PacketHandler()
+
+    Methods:
+        PacketHandler:HookIncomingPacket(header, callback)
+        PacketHandler:HookOutgoingPacket(header, callback)
+
+]]
+class 'PacketHandler'
+
+--[[
+    Create a new instance of PacketHandler. There may only be one instance at the time.
+]]
+function PacketHandler:__init()
+
+    -- Only allow one instance of PacketHandler
+    if not _G.PacketHandlerInstance then
+        _G.PacketHandlerInstance = self
+    else
+        return _G.PacketHandlerInstance
+    end
+
+    self.__incomingCallbacks = {}
+    self.__outgoingCallbacks = {}
+
+    -- Saving the original SendPacket function for later usage
+    _G.OldSendPacket = _G.SendPacket
+
+    -- Overriden packet sending
+    _G.SendPacket = function(p)
+        for header, callbackTable in pairs(self.__outgoingCallbacks) do
+            if header == p.header then
+                for _, callback in ipairs(callbackTable) do
+                    callback(p)
+                end
+            end
+        end
+        _G.OldSendPacket(p)
+    end
+
+end
+
+--[[
+    Hook into an incoming packet.
+
+    @param header   | integer  | Header id to hook into
+    @param callback | function | Function to call when the packet in being received
+]]
+function PacketHandler:HookIncomingPacket(header, callback)
+
+    -- Precheck
+    if not self.__incomingCallbacks[header] then
+        self.__incomingCallbacks[header] = {}
+    end
+
+    table.insert(self.__incomingCallbacks, header, callback)
+
+end
+
+--[[
+    Hook into an outgoing packet.
+
+    @param header   | integer  | Header id to hook into
+    @param callback | function | Function to call when the packet in being sent
+]]
+function PacketHandler:HookOutgoingPacket(header, callback)
+
+    -- Precheck
+    if not self.__outgoingCallbacks[header] then
+        self.__outgoingCallbacks[header] = {}
+    end
+
+    table.insert(self.__outgoingCallbacks, header, callback)
+
+end
+
+--[[
+    Internal callback
+]]
+function PacketHandler:OnRecvPacket(p)
+    for header, callbackTable in pairs(self.__incomingCallbacks) do
+        if header == p.header then
+            for _, callback in ipairs(callbackTable) do
+                callback(p)
+            end
+        end
+    end
+end
+
+--[[
+    Internal callback
+]]
+function PacketHandler:OnSendPacket(p)
+    for header, callbackTable in pairs(self.__outgoingCallbacks) do
+        if header == p.header then
+            for _, callback in ipairs(callbackTable) do
+                callback(p)
+            end
+        end
+    end
+end
+
 
 --[[
 
