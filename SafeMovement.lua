@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.002
+local version = 0.003
 
 --[[
 
@@ -62,8 +62,12 @@ _________            .___
         \/            \/    \/ 
 ]]
 
+-- Register advanced callback
+AdvancedCallback:register('OnPacketMove')
+
 local menu = nil
 local lastSend = 0
+local menuText = nil
 
 function OnLoad()
 
@@ -73,20 +77,64 @@ function OnLoad()
     _G.sourceMenu:addSubMenu(scriptName, scriptName)
     menu = _G.sourceMenu[scriptName]
 
-    menu:addParam("enabled",  "Enabled",                  SCRIPT_PARAM_ONOFF, false)
-    menu:addParam("sep",      "",                         SCRIPT_PARAM_INFO,  "")
-    menu:addParam("interval", "Movement every x seconds", SCRIPT_PARAM_SLICE, 0.2, 0, 1, 1)
+    menu:addParam("enabled",  "Enabled",                        SCRIPT_PARAM_ONOFF, false)
+    menu:addParam("sep",      "",                               SCRIPT_PARAM_INFO,  "")
+    menu:addParam("interval", "Movement every x milliseconds",  SCRIPT_PARAM_SLICE, 50, 0, 100, 0)
+    menu:addParam("text",     "",                               SCRIPT_PARAM_INFO,  "")
+
+    menuText = menu._param[#menu._param]
+
+    AdvancedCallback:bind("OnPacketMove", OnPacketMove)
+
+    DelayAction(delayedOverride, 2)
+
+end
+
+function OnTick()
+
+    -- Update menu text
+    local clicksPerSecond = menu.interval > 0 and math.round(1000 / menu.interval) or "Uncapped"
+    menuText.text = " = " .. clicksPerSecond .. " clicks per second"
 
 end
 
 function OnSendPacket(p)
 
-    if menu.enabled and p.header == Packet.headers.S_MOVE then
-        if os.clock() - lastSend >= menu.interval then
-            lastSend = os.clock()
-        else
-            p:Block()
+    if p.header == Packet.headers.S_MOVE then
+        local packet = Packet(p)
+        if packet:get("type") ~= 3 then
+            OnPacketMove(p)
         end
     end
+
+end
+
+function OnPacketMove(p)
+
+    if os.clock() * 1000 - lastSend < menu.interval then
+        p:Block()
+    else
+        lastSend = os.clock() * 1000
+    end
+
+end
+
+function delayedOverride()
+
+    -- Saving the original SendPacket function for later usage
+    _G.OldSendPacket = _G.SendPacket
+
+    -- Overriden packet sending
+    _G.SendPacket = function(p)
+        if p.header == Packet.headers.S_MOVE then
+            local packet = Packet(p)
+            if packet:get("type") ~= 3 then
+                AdvancedCallback:OnPacketMove(p)
+            end
+            _G.OldSendPacket(p)
+        end
+    end
+
+    print("<font color=\"#6699ff\"><b>" .. scriptName .. ":</b></font> <font color=\"#FFFFFF\">SendPacket has beed overriden!</font>")
 
 end
