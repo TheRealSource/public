@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.004
+local version = 0.006
 
 --[[
 
@@ -82,19 +82,36 @@ function OnLoad()
     menu:addParam("random",   "Spam randomly!",       SCRIPT_PARAM_ONOFF, false)
     menu:addParam("block",    "Block packet locally", SCRIPT_PARAM_ONOFF, true)
     menu:addParam("sep",      "",                     SCRIPT_PARAM_INFO,  "")
-    menu:addParam("type",     "Spam type:",           SCRIPT_PARAM_LIST,  1, { "Moving", "Always" })
+    menu:addParam("type",     "Spam type:",           SCRIPT_PARAM_LIST,  1, { "Moving", "Always", "On Kill" })
     menu:addParam("sep",      "",                     SCRIPT_PARAM_INFO,  "")
     menu:addParam("mode",     "Spam emotion:",        SCRIPT_PARAM_LIST,  2, spamTable)
     menu:addParam("interval", "Interval per second",  SCRIPT_PARAM_SLICE, 1, 1, 10, 1)
 
+    AdvancedCallback:register('OnHeroKilled', LaughOnKill)
+
+    local packetHandler = PacketHandler()
+    packetHandler:HookOutgoingPacket(Packet.headers.S_MOVE, OnMovePacket)
+    packetHandler:HookIncomingPacket(65, OnRecvEmote)
+
 end
 
-function SendEmote()
+-- Broken, Apple is too lazy to update the callback :D
+function LaughOnKill(killed, killer)
 
+    if menu.type == 3 and killed.team ~= player.team then
+        -- Send laugh
+        SendEmote(2)
+    end
+
+end
+
+function SendEmote(emote)
+
+    emote = emote or (menu.random and math.random(#spamTable) or menu.mode)
     local p = CLoLPacket(71)
     p.pos = 1
     p:EncodeF(player.networkID)
-    p:Encode1(menu.random and math.random(#spamTable) or menu.mode)
+    p:Encode1(emote)
     p:Encode1(0)
     SendPacket(p)
 
@@ -109,18 +126,18 @@ function OnTick()
 
 end
 
-function OnSendPacket(p)
+function OnMovePacket(p)
 
-    if menu.enabled and menu.type == 1 and p.header == Packet.headers.S_MOVE and os.clock() - lastEmote >= menu.interval then
+    if menu.enabled and os.clock() - lastEmote >= menu.interval then
         lastEmote = os.clock()
         SendEmote()
     end
 
 end
 
-function OnRecvPacket(p)
+function OnRecvEmote(p)
 
-    if menu.enabled and menu.block and p.header == 65 then
+    if menu.enabled and menu.block then
         p.pos = 1
         if p:DecodeF() == player.networkID then
             p:Replace1(255,5)

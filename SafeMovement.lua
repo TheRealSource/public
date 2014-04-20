@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.006
+local version = 0.007
 
 --[[
 
@@ -64,9 +64,6 @@ _________            .___
         \/            \/    \/ 
 ]]
 
--- Register advanced callback
-AdvancedCallback:register('OnPacketMove')
-
 local menu = nil
 local lastSend = 0
 local menuText = nil
@@ -86,9 +83,7 @@ function OnLoad()
 
     menuText = menu._param[#menu._param]
 
-    AdvancedCallback:bind("OnPacketMove", OnPacketMove)
-
-    DelayAction(delayedOverride, 2)
+    PacketHandler():HookOutgoingPacket(Packet.headers.S_MOVE, OnMovePacket)
 
 end
 
@@ -100,43 +95,15 @@ function OnTick()
 
 end
 
-function OnSendPacket(p)
+function OnMovePacket(p)
 
-    if p.header == Packet.headers.S_MOVE then
-        local packet = Packet(p)
-        if packet:get("type") ~= 3 then
-            OnPacketMove(p)
+    local packet = Packet(p)
+    if packet:get("type") == 2 then
+        if os.clock() * 1000 - lastSend < menu.interval and not _G.Evadeee_evading then
+            p:Block()
+        else
+            lastSend = os.clock() * 1000
         end
     end
-
-end
-
-function OnPacketMove(p)
-
-    if os.clock() * 1000 - lastSend < menu.interval and not _G.Evadeee_evading then
-        p:Block()
-    else
-        lastSend = os.clock() * 1000
-    end
-
-end
-
-function delayedOverride()
-
-    -- Saving the original SendPacket function for later usage
-    _G.OldSendPacket = _G.SendPacket
-
-    -- Overriden packet sending
-    _G.SendPacket = function(p)
-        if p.header == Packet.headers.S_MOVE then
-            local packet = Packet(p)
-            if packet:get("type") ~= 3 then
-                AdvancedCallback:OnPacketMove(p)
-            end
-        end
-        _G.OldSendPacket(p)
-    end
-
-    print("<font color=\"#6699ff\"><b>" .. scriptName .. ":</b></font> <font color=\"#FFFFFF\">SendPacket has beed overriden!</font>")
 
 end
