@@ -25,6 +25,8 @@ local version = 0.004
 
 ]]
 
+if not VIP_USER then return end
+
 local scriptName = "EmoteSpammer"
 
 --[[

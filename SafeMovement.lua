@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.003
+local version = 0.005
 
 --[[
 
@@ -24,6 +24,8 @@ local version = 0.003
     along with this program.  If not, see http://www.gnu.org/licenses/.
 
 ]]
+
+if not VIP_USER then return end
 
 local scriptName = "SafeMovement"
 
@@ -131,8 +133,8 @@ function delayedOverride()
             if packet:get("type") ~= 3 then
                 AdvancedCallback:OnPacketMove(p)
             end
-            _G.OldSendPacket(p)
         end
+        _G.OldSendPacket(p)
     end
 
     print("<font color=\"#6699ff\"><b>" .. scriptName .. ":</b></font> <font color=\"#FFFFFF\">SendPacket has beed overriden!</font>")
