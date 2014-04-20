@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.005
+local version = 0.006
 
 --[[
 
@@ -113,7 +113,7 @@ end
 
 function OnPacketMove(p)
 
-    if os.clock() * 1000 - lastSend < menu.interval then
+    if os.clock() * 1000 - lastSend < menu.interval and not _G.Evadeee_evading then
         p:Block()
     else
         lastSend = os.clock() * 1000
