@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.050
+local version = 1.051
 
 --[[
 
@@ -2495,29 +2495,29 @@ class 'PacketHandler'
 ]]
 function PacketHandler:__init()
 
-    -- Only allow one instance of PacketHandler
-    if not _G.PacketHandlerInstance then
-        _G.PacketHandlerInstance = self
-    else
-        return _G.PacketHandlerInstance
-    end
-
     self.__incomingCallbacks = {}
     self.__outgoingCallbacks = {}
 
-    -- Saving the original SendPacket function for later usage
-    _G.OldSendPacket = _G.SendPacket
+    -- Register callbacks
+    AddSendPacketCallback(function(p) self:OnSendPacket(p) end)
+    AddRecvPacketCallback(function(p) self:OnRecvPacket(p) end)
 
-    -- Overriden packet sending
-    _G.SendPacket = function(p)
-        for header, callbackTable in pairs(self.__outgoingCallbacks) do
-            if header == p.header then
-                for _, callback in ipairs(callbackTable) do
-                    callback(p)
+    -- Only replace the function once
+    if not _G.OldSendPacket then
+        -- Saving the original SendPacket function for later usage
+        _G.OldSendPacket = _G.SendPacket
+
+        -- Overriden packet sending
+        _G.SendPacket = function(p)
+            for header, callbackTable in pairs(self.__outgoingCallbacks) do
+                if header == p.header then
+                    for _, callback in ipairs(callbackTable) do
+                        callback(p)
+                    end
                 end
             end
+            _G.OldSendPacket(p)
         end
-        _G.OldSendPacket(p)
     end
 
 end
@@ -2535,7 +2535,7 @@ function PacketHandler:HookIncomingPacket(header, callback)
         self.__incomingCallbacks[header] = {}
     end
 
-    table.insert(self.__incomingCallbacks, header, callback)
+    table.insert(self.__incomingCallbacks[header], callback)
 
 end
 
@@ -2552,7 +2552,7 @@ function PacketHandler:HookOutgoingPacket(header, callback)
         self.__outgoingCallbacks[header] = {}
     end
 
-    table.insert(self.__outgoingCallbacks, header, callback)
+    table.insert(self.__outgoingCallbacks[header], callback)
 
 end
 
