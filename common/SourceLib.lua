@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.051
+local version = 1.052
 
 --[[
 
@@ -50,6 +50,17 @@ local version = 1.051
         AntiGetcloser   -- Never let them get close to you
 
 ]]
+
+-- Temporary here until it's included in BoL itself
+if VIP_USER then
+    AddBugsplatCallback(function()
+        local p = CLoLPacket(0x9B)
+        p.dwArg1 = 1
+        p.dwArg2 = 0
+        p:Encode4(0)
+        SendPacket(p)
+    end)
+end
 
 --[[
 
@@ -171,7 +182,7 @@ class 'SourceUpdater'
 -- Deprecated LazyUpdater
 class 'LazyUpdater'
 function LazyUpdater:__init(scriptName, version, host, updatePath, filePath, versionPath)
-    print("LazyUpdater is deprecated and will be removed soon! Use SourceUpdater instead!")
+    DelayAction(print(GetCurrentEnv.FILE_NAME .. ": LazyUpdater is deprecated and will be removed soon! Use SourceUpdater instead!"), 10)
     self.updater = SourceUpdater(scriptName, version, host, updatePath, filePath, versionPath)
 end
 function LazyUpdater:SetSilent(silent)
@@ -233,9 +244,6 @@ end
     Check for an update and downloads it when available
 ]]
 function SourceUpdater:CheckUpdate()
-
-    -- Validate callback
-    callback = callback and type(callback) == "function" and callback or nil
 
     local webResult = GetWebResult(self.UPDATE_HOST, self.VERSION_PATH or self.UPDATE_PATH)
     if webResult then
