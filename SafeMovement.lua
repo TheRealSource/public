@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.007
+local version = 0.008
 
 --[[
 
@@ -83,7 +83,7 @@ function OnLoad()
 
     menuText = menu._param[#menu._param]
 
-    PacketHandler():HookOutgoingPacket(Packet.headers.S_MOVE, OnMovePacket)
+    PacketHandler:HookOutgoingPacket(Packet.headers.S_MOVE, OnMovePacket)
 
 end
 
@@ -104,6 +104,9 @@ function OnMovePacket(p)
         else
             lastSend = os.clock() * 1000
         end
+    else
+        -- Reset on AA
+        lastSend = 0
     end
 
 end

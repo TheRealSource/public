@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.006
+local version = 0.008
 
 --[[
 
@@ -89,9 +89,8 @@ function OnLoad()
 
     AdvancedCallback:register('OnHeroKilled', LaughOnKill)
 
-    local packetHandler = PacketHandler()
-    packetHandler:HookOutgoingPacket(Packet.headers.S_MOVE, OnMovePacket)
-    packetHandler:HookIncomingPacket(65, OnRecvEmote)
+    PacketHandler:HookOutgoingPacket(Packet.headers.S_MOVE, OnMovePacket)
+    PacketHandler:HookIncomingPacket(65, OnRecvEmote)
 
 end
 

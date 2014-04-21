@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.052
+local version = 1.053
 
 --[[
 
@@ -2488,20 +2488,17 @@ end
 
     PacketHandler - Even track all dem packets, not just the easy ones!
 
-    Functions:
-        PacketHandler()
-
     Methods:
         PacketHandler:HookIncomingPacket(header, callback)
         PacketHandler:HookOutgoingPacket(header, callback)
 
 ]]
-class 'PacketHandler'
+class '_PacketHandler'
 
 --[[
-    Create a new instance of PacketHandler. There may only be one instance at the time.
+    Create a new instance of _PacketHandler. Please don't call this, use the global PacketHandler instead.
 ]]
-function PacketHandler:__init()
+function _PacketHandler:__init()
 
     self.__incomingCallbacks = {}
     self.__outgoingCallbacks = {}
@@ -2536,7 +2533,7 @@ end
     @param header   | integer  | Header id to hook into
     @param callback | function | Function to call when the packet in being received
 ]]
-function PacketHandler:HookIncomingPacket(header, callback)
+function _PacketHandler:HookIncomingPacket(header, callback)
 
     -- Precheck
     if not self.__incomingCallbacks[header] then
@@ -2553,7 +2550,7 @@ end
     @param header   | integer  | Header id to hook into
     @param callback | function | Function to call when the packet in being sent
 ]]
-function PacketHandler:HookOutgoingPacket(header, callback)
+function _PacketHandler:HookOutgoingPacket(header, callback)
 
     -- Precheck
     if not self.__outgoingCallbacks[header] then
@@ -2567,7 +2564,7 @@ end
 --[[
     Internal callback
 ]]
-function PacketHandler:OnRecvPacket(p)
+function _PacketHandler:OnRecvPacket(p)
     for header, callbackTable in pairs(self.__incomingCallbacks) do
         if header == p.header then
             for _, callback in ipairs(callbackTable) do
@@ -2580,7 +2577,7 @@ end
 --[[
     Internal callback
 ]]
-function PacketHandler:OnSendPacket(p)
+function _PacketHandler:OnSendPacket(p)
     for header, callbackTable in pairs(self.__outgoingCallbacks) do
         if header == p.header then
             for _, callback in ipairs(callbackTable) do
@@ -2589,6 +2586,9 @@ function PacketHandler:OnSendPacket(p)
         end
     end
 end
+
+-- Create a global instsance of PacketHandler
+PacketHandler = _PacketHandler()
 
 
 --[[
