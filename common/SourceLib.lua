@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.055
+local version = 1.056
 
 --[[
 
@@ -182,7 +182,7 @@ class 'SourceUpdater'
 -- Deprecated LazyUpdater
 class 'LazyUpdater'
 function LazyUpdater:__init(scriptName, version, host, updatePath, filePath, versionPath)
-    DelayAction(print(GetCurrentEnv().FILE_NAME .. ": LazyUpdater is deprecated and will be removed soon! Use SourceUpdater instead!"), 10)
+    DelayAction(function() print(GetCurrentEnv().FILE_NAME .. ": LazyUpdater is deprecated and will be removed soon! Use SourceUpdater instead!") end, 10)
     self.updater = SourceUpdater(scriptName, version, host, updatePath, filePath, versionPath)
 end
 function LazyUpdater:SetSilent(silent)
