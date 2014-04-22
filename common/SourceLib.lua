@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.056
+local version = 1.057
 
 --[[
 
@@ -182,7 +182,7 @@ class 'SourceUpdater'
 -- Deprecated LazyUpdater
 class 'LazyUpdater'
 function LazyUpdater:__init(scriptName, version, host, updatePath, filePath, versionPath)
-    DelayAction(function() print(GetCurrentEnv().FILE_NAME .. ": LazyUpdater is deprecated and will be removed soon! Use SourceUpdater instead!") end, 10)
+    DelayAction(function() print("SourceLib: One or more of your scripts uses LazyUpdater which is deprecated and will be removed soon! Use SourceUpdater instead! And yes I mean you Ranked Fire...") end, 10)
     self.updater = SourceUpdater(scriptName, version, host, updatePath, filePath, versionPath)
 end
 function LazyUpdater:SetSilent(silent)
@@ -2589,6 +2589,48 @@ end
 
 -- Create a global instsance of PacketHandler
 PacketHandler = _PacketHandler()
+
+
+--[[
+
+ ..|'''.|                             '||'  '||'                       '||  '||                  
+.|'     '   ....   .. .. ..     ....   ||    ||   ....   .. ...      .. ||   ||    ....  ... ..  
+||    .... '' .||   || || ||  .|...||  ||''''||  '' .||   ||  ||   .'  '||   ||  .|...||  ||' '' 
+'|.    ||  .|' ||   || || ||  ||       ||    ||  .|' ||   ||  ||   |.   ||   ||  ||       ||     
+ ''|...'|  '|..'|' .|| || ||.  '|...' .||.  .||. '|..'|' .||. ||.  '|..'||. .||.  '|...' .||.    
+
+    GameHandler - Hooks for everything and some nice extra stuff aswell
+
+]]
+class '_GameHandler'
+
+function _GameHandler:__init()
+end
+
+local gridSize = 50
+function _GameHandler:GetGridCoordinates(unit)
+
+    assert(unit and unit.x and unit.y and unit.z, "GameHandler:GetGridCoordinates(): unit is invalid!")
+    return Vector(math.ceil(unit.x / gridSize), math.ceil(unit.y / gridSize), math.ceil(unit.z / gridSize))
+
+end
+
+function _GameHandler:GetGameCoordinates(grid)
+
+    assert(grid and grid.x and grid.y and grid.z, "GameHandler:GetGameCoordinates(): grid is invalid")
+    return Vector(grid.x * gridSize, grid.y * gridSize, grid.z * gridSize)
+
+end
+
+function _GameHandler:GetGridGameCoordinates(unit)
+
+    assert(unit and unit.x and unit.y and unit.z, "GameHandler:GetGridGameCoordinates(): unit is invalid!")
+    return self:GetGameCoordinates(self:GetGridCoordinates(unit))
+
+end
+
+-- Create a global instance of GameHandler
+GameHandler = _GameHandler()
 
 
 --[[
