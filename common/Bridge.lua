@@ -42,6 +42,8 @@ if not _G.Callback then
 
         eCallback = eCallback:lower()
 
+        assert(table.contains(_G.CallBacks, eCallback), "Callback:Bind(): Callback with the name \'" .. eCallback .. "\' does not exist!")
+
         if not self.__callbacks[eCallback] then
             self.__callbacks[eCallback] = {}
         end
@@ -57,6 +59,8 @@ if not _G.Callback then
         assert(type(eCallback) == "string" and type(fnc) == "function", "Callback:Unbind(): Some or all arguments are wrong!")
 
         eCallback = eCallback:lower()
+
+        assert(table.contains(_G.CallBacks, eCallback), "Callback:Unbind(): Callback with the name \'" .. eCallback .. "\' does not exist!")
 
         if self.__callbacks[eCallback] then
 
@@ -76,6 +80,8 @@ if not _G.Callback then
     function _Callback:GetCallbacks(eCallback)
 
         eCallback = eCallback:lower()
+
+        assert(table.contains(_G.CallBacks, eCallback), "Callback:GetCallbacks(): Callback with the name \'" .. eCallback .. "\' does not exist!")
 
         return self.__callbacks[eCallback] or {}
 
