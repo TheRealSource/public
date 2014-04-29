@@ -124,7 +124,7 @@ if not _G.Callback then
         end
     end)
 
-    AddChatCallback(
+    AdvancedCallback:bind('OnSendChat',
     function(text)
         for _, callback in ipairs(Callback:GetCallbacks(CallBacks.SEND_CHAT)) do
             callback(text)
@@ -138,7 +138,7 @@ if not _G.Callback then
         end
     end)
 
-    AddMsgCallback(
+    AdvancedCallback:bind('OnWndMsg',
     function(msg, wParam)
         for _, callback in ipairs(Callback:GetCallbacks(CallBacks.WND_MSG)) do
             callback(msg,wParam)
@@ -193,14 +193,14 @@ if not _G.Callback then
             callback(object, animation)
         end
     end)
-    AddNotifyEventCallback(
+    AdvancedCallback:bind('OnNotify',
     function(event, unit)
         for _, callback in ipairs(Callback:GetCallbacks(CallBacks.NOTIFY)) do
             callback(event, unit)
         end
     end)
 
-    AddParticleCallback(
+    AdvancedCallback:bind('OnApplyParticle',
     function(unit, particle)
         for _, callback in ipairs(Callback:GetCallbacks(CallBacks.APPLY_PARTICLE)) do
             callback(unit, particle)
