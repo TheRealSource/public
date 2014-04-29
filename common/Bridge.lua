@@ -39,7 +39,9 @@ if not _G.Callback then
     function _Callback:Bind(eCallback, fnc)
 
         assert(type(eCallback) == "string" and type(fnc) == "function", "Callback:Bind(): Some or all arguments are wrong!")
+
         eCallback = eCallback:lower()
+
         assert(table.contains(_G.CallBacks, eCallback), "Callback:Bind(): Callback with the name \'" .. eCallback .. "\' does not exist!")
 
         if not self.__callbacks[eCallback] then
@@ -55,14 +57,20 @@ if not _G.Callback then
     function _Callback:Unbind(eCallback, fnc)
 
         assert(type(eCallback) == "string" and type(fnc) == "function", "Callback:Unbind(): Some or all arguments are wrong!")
+
         eCallback = eCallback:lower()
+
         assert(table.contains(_G.CallBacks, eCallback), "Callback:Unbind(): Callback with the name \'" .. eCallback .. "\' does not exist!")
 
-        for index, func in ipairs(self:GetCallbacks(eCallback)) do
-            if func == fnc then
-                table.remove(self.__callbacks[eCallback], index)
-                return true
+        if self.__callbacks[eCallback] then
+
+            for index, func in ipairs(self.__callbacks[eCallback]) do
+                if func == fnc then
+                    table.remove(self.__callbacks[eCallback], index)
+                    return true
+                end
             end
+
         end
 
         return false
@@ -72,6 +80,7 @@ if not _G.Callback then
     function _Callback:GetCallbacks(eCallback)
 
         eCallback = eCallback:lower()
+
         assert(table.contains(_G.CallBacks, eCallback), "Callback:GetCallbacks(): Callback with the name \'" .. eCallback .. "\' does not exist!")
 
         return self.__callbacks[eCallback] or {}
@@ -124,7 +133,7 @@ if not _G.Callback then
         end
     end)
 
-    AdvancedCallback:bind('OnSendChat',
+    AddChatCallback(
     function(text)
         for _, callback in ipairs(Callback:GetCallbacks(CallBacks.SEND_CHAT)) do
             callback(text)
@@ -138,7 +147,7 @@ if not _G.Callback then
         end
     end)
 
-    AdvancedCallback:bind('OnWndMsg',
+    AddMsgCallback(
     function(msg, wParam)
         for _, callback in ipairs(Callback:GetCallbacks(CallBacks.WND_MSG)) do
             callback(msg,wParam)
@@ -193,14 +202,14 @@ if not _G.Callback then
             callback(object, animation)
         end
     end)
-    AdvancedCallback:bind('OnNotify',
+    AddNotifyEventCallback(
     function(event, unit)
         for _, callback in ipairs(Callback:GetCallbacks(CallBacks.NOTIFY)) do
             callback(event, unit)
         end
     end)
 
-    AdvancedCallback:bind('OnApplyParticle',
+    AddParticleCallback(
     function(unit, particle)
         for _, callback in ipairs(Callback:GetCallbacks(CallBacks.APPLY_PARTICLE)) do
             callback(unit, particle)
