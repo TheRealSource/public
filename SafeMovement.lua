@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.009
+local version = 1.000
 
 --[[
 
@@ -97,6 +97,8 @@ end
 
 function OnMovePacket(p)
 
+	if not menu.enabled then return end
+
     local packet = Packet(p)
     if packet:get("type") == 2 then
         if packet:get("sourceNetworkId") == player.networkID then
@@ -104,7 +106,6 @@ function OnMovePacket(p)
                 p:Block()
             else
                 lastSend = os.clock() * 1000
-                doubleCast = 0
             end
         end
     elseif packet:get("type") == 3 then
