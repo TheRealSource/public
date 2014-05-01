@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.008
+local version = 0.009
 
 --[[
 
@@ -99,12 +99,15 @@ function OnMovePacket(p)
 
     local packet = Packet(p)
     if packet:get("type") == 2 then
-        if os.clock() * 1000 - lastSend < menu.interval and not _G.Evadeee_evading then
-            p:Block()
-        else
-            lastSend = os.clock() * 1000
+        if packet:get("sourceNetworkId") == player.networkID then
+            if os.clock() * 1000 - lastSend < menu.interval and not _G.Evadeee_evading then
+                p:Block()
+            else
+                lastSend = os.clock() * 1000
+                doubleCast = 0
+            end
         end
-    else
+    elseif packet:get("type") == 3 then
         -- Reset on AA
         lastSend = 0
     end
