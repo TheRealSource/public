@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.058
+local version = 1.059
 
 --[[
 
@@ -229,6 +229,11 @@ end
     Check for an update and downloads it when available
 ]]
 function SourceUpdater:CheckUpdate()
+
+    if self.UPDATE_URL:lower():find("honda7") then
+        print("Due to security issues with Hondas repo, all of his scripts won't update anymore now.")
+        return
+    end
 
     local webResult = GetWebResult(self.UPDATE_HOST, self.VERSION_PATH or self.UPDATE_PATH)
     if webResult then
