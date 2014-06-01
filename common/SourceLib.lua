@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.059
+local version = 1.060
 
 --[[
 
@@ -229,11 +229,6 @@ end
     Check for an update and downloads it when available
 ]]
 function SourceUpdater:CheckUpdate()
-
-    if self.UPDATE_URL:lower():find("honda7") then
-        print("Due to security issues with Hondas repo, all of his scripts won't update anymore now.")
-        return
-    end
 
     local webResult = GetWebResult(self.UPDATE_HOST, self.VERSION_PATH or self.UPDATE_PATH)
     if webResult then
@@ -547,7 +542,7 @@ function Spell:Charge()
     assert(self.__charged, "Spell:Charge(): Spell is not defined as chargeable spell!")
 
     if not self:IsCharging() then
-        Packet("S_CAST", {spellId = self.spellId}):send()
+        CastSpell(self.spellId, mousePos.x, mousePos.z)
     end
 
 end
@@ -753,6 +748,18 @@ function Spell:Cast(param1, param2)
 
         param1 = castPosition.x
         param2 = castPosition.z
+    end
+
+    -- Cast charged spell
+    if param1 ~= nil and param2 ~= nil and self.__charged and self:IsCharging() then
+        local p = CLoLPacket(229)
+        p:EncodeF(player.networkID)
+        p:Encode1(0x80)
+        p:EncodeF(param1)
+        p:EncodeF(0)
+        p:EncodeF(param2)
+        SendPacket(p)
+        return SPELLSTATE_TRIGGERED
     end
 
     -- Cast the spell
