@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.061
+local version = 1.062
 
 --[[
 
@@ -2686,6 +2686,43 @@ GameHandler = _GameHandler()
     Util - Just utils.
 ]]
 
+SUMMONERS_RIFT   = { 1, 2 }
+PROVING_GROUNDS  = 3
+TWISTED_TREELINE = { 4, 10 }
+CRYSTAL_SCAR     = 8
+HOWLING_ABYSS    = 12
+
+function IsMap(map)
+
+    assert(map and (type(map) == "number" or type(map) == "table"), "IsMap(): map is invalid!")
+    if type(map) == "number" then
+        return GetGame().map.index == map
+    else
+        for _, id in ipairs(map) do
+            if GetGame().map.index == id then return true end
+        end
+    end
+
+end
+
+function GetMapName()
+
+    if IsMap(SUMMONERS_RIFT) then
+        return "Summoners Rift"
+    elseif IsMap(CRYSTAL_SCAR) then
+        return "Crystal Scar"
+    elseif IsMap(HOWLING_ABYSS) then
+        return "Howling Abyss"
+    elseif IsMap(TWISTED_TREELINE) then
+        return "Twisted Treeline"
+    elseif IsMap(PROVING_GROUNDS) then
+        return "Proving Grounds"
+    else
+        return "Unknown map"
+    end
+
+end
+
 function ProtectTable(t)
 
     local proxy = {}
@@ -2929,9 +2966,11 @@ function TableDeepCopy(orig)
     if orig_type == 'table' then
         copy = {}
         for orig_key, orig_value in next, orig, nil do
-            copy[deepcopy(orig_key)] = deepcopy(orig_value)
+            copy[TableDeepCopy(orig_key)] = TableDeepCopy(orig_value)
         end
-        setmetatable(copy, deepcopy(getmetatable(orig)))
+        setmetatable(copy, TableDeepCopy(getmetatable(orig)))
+    elseif orig_type == "Vector" then
+        copy = orig:clone()
     else -- number, string, boolean, etc
         copy = orig
     end
