@@ -2845,7 +2845,7 @@ function TARGB(colorTable)
 end
 
 function PingClient(x, y, pingType)
-    Packet("R_PING", {x = y, y = y, type = pingType and pingType or PING_FALLBACK}):receive()
+    Packet("R_PING", {x = x, y = y, type = pingType and pingType or PING_FALLBACK}):receive()
 end
 
 local __util_autoAttack   = { "frostarrow" }
