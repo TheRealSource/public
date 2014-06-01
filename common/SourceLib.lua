@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.060
+local version = 1.061
 
 --[[
 
@@ -51,16 +51,9 @@ local version = 1.060
 
 ]]
 
--- Temporary here until it's included in BoL itself
-if VIP_USER then
-    AddBugsplatCallback(function()
-        local p = CLoLPacket(0x9B)
-        p.dwArg1 = 1
-        p.dwArg2 = 0
-        p:Encode4(0)
-        SendPacket(p)
-    end)
-end
+-- Namespace by pqmailer, added for Prodiction support reasons
+-- Used for several things in the future, like menues etc.
+_G.srcLib = {}
 
 --[[
 
@@ -345,13 +338,29 @@ local spellNum = 1
 --[[
     New instance of Spell
 
-    @param spellId    | int   | Spell ID (_Q, _W, _E, _R)
-    @param range      | float | Range of the spell
-    @param packetCast | bool  | (optional) Enable packet casting
+    @param spellId    | int          | Spell ID (_Q, _W, _E, _R)
+    @param range      | float        | Range of the spell
+    @param packetCast | bool         | (optional) Enable packet casting
+    @param menu       | scriptCofnig | (Sub)Menu to add the spell casting menu to
 ]]
-function Spell:__init(spellId, range, packetCast)
+function Spell:__init(spellId, range, packetCast, menu)
 
     assert(spellId ~= nil and range ~= nil and type(spellId) == "number" and type(range) == "number", "Spell: Can't initialize Spell without valid arguments.")
+
+    if _G.srcLib.spellMenu == nil then
+        _G.srcLib.spellMenu = menu or scriptConfig("[SourceLib] SpellClass", "srcSpellClass")
+        _G.srcLib.spellMenu:addParam("predictionType", "Prediction Type",     SCRIPT_PARAM_LIST, 1, { "VPrediction", "Prodiction" })
+        _G.srcLib.spellMenu:addParam("packetCast",     "Enable packet casts", SCRIPT_PARAM_ONOFF, false)
+
+        _G.srcLib.spellMenuCreationTime = os.clock()
+
+        DelayAction(function()
+            if not Prodiction then
+                print("SourceLib: Prodiction not found! Disabling Prodiction support!")
+                _G.srcLib.spellMenuProdictionDisabled = true
+            end
+        end, 5)
+    end
 
     self.spellId = spellId
     self:SetRange(range)
@@ -363,6 +372,16 @@ function Spell:__init(spellId, range, packetCast)
 
     self._spellNum = spellNum
     spellNum = spellNum + 1
+
+    self.predictionType = _G.srcLib.spellMenu.predictionType
+
+    AddTickCallback(function()
+        if _G.srcLib.spellMenuProdictionDisabled then
+            _G.srcLib.spellMenu.predictionType = 1
+        end
+        self:SetPredictionType(_G.srcLib.spellMenu.predictionType)
+        self.packetCast = _G.srcLib.spellMenu.packetCast
+    end)
 
 end
 
@@ -457,6 +476,18 @@ function Spell:SetSkillshot(VP, skillshotType, width, delay, speed, collision)
     if not self.hitChance then self.hitChance = 2 end
 
     return self
+
+end
+
+--[[
+    Sets the prediction type
+
+    @param typeId | int | type ID (1 = VPrediction (default), 2 = Prodiction)
+]]
+function Spell:SetPredictionType(typeId)
+
+    assert(typeId and type(typeId) == 'number', 'Spell:SetPredictionType(): typeId is invalid!')
+    self.predictionType = typeId
 
 end
 
@@ -583,31 +614,43 @@ function Spell:ValidTarget(target, range)
 end
 
 --[[
-    Returns the prediction results from VPrediction to use for custom reasons
+    Returns the prediction results from VPrediction/Prodiction in a VPrediction result layout
 
-    @return | various data | The original result from VPrediction
+    @return | various data | Prediction result in VPrediction layout
 ]]
 function Spell:GetPrediction(target)
 
     if self.skillshotType ~= nil then
-        if self.skillshotType == SKILLSHOT_LINEAR then
-            if self.useAoe then
-                return self.VP:GetLineAOECastPosition(target, self.delay, self.radius, self.range, self.speed, self.sourcePosition)
-            else
-                return self.VP:GetLineCastPosition(target, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
+        if self.predictionType == 1 then
+            if self.skillshotType == SKILLSHOT_LINEAR then
+                if self.useAoe then
+                    return self.VP:GetLineAOECastPosition(target, self.delay, self.radius, self.range, self.speed, self.sourcePosition)
+                else
+                    return self.VP:GetLineCastPosition(target, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
+                end
+            elseif self.skillshotType == SKILLSHOT_CIRCULAR then
+                if self.useAoe then
+                    return self.VP:GetCircularAOECastPosition(target, self.delay, self.radius, self.range, self.speed, self.sourcePosition)
+                else
+                    return self.VP:GetCircularCastPosition(target, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
+                end
+             elseif self.skillshotType == SKILLSHOT_CONE then
+                if self.useAoe then
+                    return self.VP:GetConeAOECastPosition(target, self.delay, self.radius, self.range, self.speed, self.sourcePosition)
+                else
+                    return self.VP:GetLineCastPosition(target, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
+                end
             end
-        elseif self.skillshotType == SKILLSHOT_CIRCULAR then
-            if self.useAoe then
-                return self.VP:GetCircularAOECastPosition(target, self.delay, self.radius, self.range, self.speed, self.sourcePosition)
-            else
-                return self.VP:GetCircularCastPosition(target, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
+        elseif self.predictionType == 2 then
+            local pos, info = Prodiction.GetPrediction(target, self.range, self.speed, self.delay, self.radius, self.sourcePosition)
+            if info and info.hitchance and info.hitchance >= self.hitChance then
+                if not self.collision or not info.mCollision() then
+                    return pos, info.hitchance
+                else
+                    return pos, -1
+                end
             end
-         elseif self.skillshotType == SKILLSHOT_CONE then
-            if self.useAoe then
-                return self.VP:GetConeAOECastPosition(target, self.delay, self.radius, self.range, self.speed, self.sourcePosition)
-            else
-                return self.VP:GetLineCastPosition(target, self.delay, self.width, self.range, self.speed, self.sourcePosition, self.collision)
-            end
+            return nil
         end
     end
 
@@ -746,8 +789,10 @@ function Spell:Cast(param1, param2)
         -- Out of range
         if self.rangeSqr < _GetDistanceSqr(self.sourceRange, castPosition) then return SPELLSTATE_OUT_OF_RANGE end
 
-        param1 = castPosition.x
-        param2 = castPosition.z
+        if castPosition then
+            param1 = castPosition.x
+            param2 = castPosition.z
+        end
     end
 
     -- Cast charged spell
