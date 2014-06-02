@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.062
+local version = 1.063
 
 --[[
 
@@ -645,9 +645,9 @@ function Spell:GetPrediction(target)
             local pos, info = Prodiction.GetPrediction(target, self.range, self.speed, self.delay, self.radius, self.sourcePosition)
             if info and info.hitchance and info.hitchance >= self.hitChance then
                 if not self.collision or not info.mCollision() then
-                    return pos, info.hitchance
+                    return pos, info.hitchance, pos
                 else
-                    return pos, -1
+                    return pos, -1, pos
                 end
             end
             return nil
@@ -765,7 +765,7 @@ function Spell:Cast(param1, param2)
             else
                 castPosition, hitChance, position = self:GetPrediction(param1)
                 -- Out of range
-                if self.rangeSqr < _GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
+                if position and self.rangeSqr < _GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
             end
         elseif self.skillshotType == SKILLSHOT_CIRCULAR then
             if self.useAoe then
@@ -773,7 +773,7 @@ function Spell:Cast(param1, param2)
             else
                 castPosition, hitChance, position = self:GetPrediction(param1)
                 -- Out of range
-                if math.pow(self.range + self.width + self.VP:GetHitBox(param1), 2) < _GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
+                if position and math.pow(self.range + self.width + self.VP:GetHitBox(param1), 2) < _GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
             end
         end
 
