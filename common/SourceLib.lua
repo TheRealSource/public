@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.065
+local version = 1.066
 
 --[[
 
@@ -185,7 +185,7 @@ class 'SourceUpdater'
 function SourceUpdater:__init(scriptName, version, host, updatePath, filePath, versionPath)
 
     self.printMessage = function(message) if not self.silent then print("<font color=\"#6699ff\"><b>" .. self.UPDATE_SCRIPT_NAME .. ":</b></font> <font color=\"#FFFFFF\">" .. message .. "</font>") end end
-    self.getVersion = function(version) return tonumber(string.match(version, "%d+%.?%d*")) end
+    self.getVersion = function(version) return tonumber(string.match(version or "", "%d+%.?%d*")) end
 
     self.UPDATE_SCRIPT_NAME = scriptName
     self.UPDATE_HOST = host
@@ -232,6 +232,10 @@ function SourceUpdater:CheckUpdate()
         end
         if self.SERVER_VERSION then
             self.SERVER_VERSION = self.getVersion(self.SERVER_VERSION)
+            if not self.SERVER_VERSION then
+                print("SourceLib: Please contact the developer of the script \"" .. (GetCurrentEnv().FILE_NAME or "DerpScript") .. "\", since the auto updater returned an invalid version.")
+                return
+            end
             if self.FILE_VERSION < self.SERVER_VERSION then
                 self.printMessage("New version available: v" .. self.SERVER_VERSION)
                 self.printMessage("Updating, please don't press F9")
@@ -645,9 +649,9 @@ function Spell:GetPrediction(target)
             local pos, info = Prodiction.GetPrediction(target, self.range, self.speed, self.delay, self.radius, self.sourcePosition)
             if info and info.hitchance and info.hitchance >= self.hitChance then
                 if not self.collision or not info.mCollision() then
-                    return pos, info.hitchance, not self.useAoe and pos or nil
+                    return pos, info.hitchance, (not self.useAoe and pos or nil)
                 else
-                    return pos, -1, not self.useAoe and pos or nil
+                    return pos, -1, (not self.useAoe and pos or nil)
                 end
             end
             return nil
@@ -765,7 +769,7 @@ function Spell:Cast(param1, param2)
             else
                 castPosition, hitChance, position = self:GetPrediction(param1)
                 -- Out of range
-                if position and self.rangeSqr < _GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
+                if position ~= nil and self.rangeSqr < _GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
             end
         elseif self.skillshotType == SKILLSHOT_CIRCULAR then
             if self.useAoe then
@@ -773,7 +777,7 @@ function Spell:Cast(param1, param2)
             else
                 castPosition, hitChance, position = self:GetPrediction(param1)
                 -- Out of range
-                if position and math.pow(self.range + self.width + self.VP:GetHitBox(param1), 2) < _GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
+                if position ~= nil and math.pow(self.range + self.width + self.VP:GetHitBox(param1), 2) < _GetDistanceSqr(self.sourceRange, position) then return SPELLSTATE_OUT_OF_RANGE end
             end
         end
 
@@ -792,6 +796,9 @@ function Spell:Cast(param1, param2)
         if castPosition then
             param1 = castPosition.x
             param2 = castPosition.z
+        else
+            param2 = param1.z
+            param1 = param1.x
         end
     end
 
