@@ -781,6 +781,9 @@ function Spell:Cast(param1, param2)
             end
         end
 
+        -- Invalid cast, only happens with Prodiction, please fix this Klokje <3
+        if not castPosition then return end
+
         -- AOE not enough targets
         if nTargets and nTargets < self.minTargetsAoe then return SPELLSTATE_NOT_ENOUGH_TARGETS end
 
