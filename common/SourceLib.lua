@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.066
+local version = 1.067
 
 --[[
 
@@ -352,18 +352,14 @@ function Spell:__init(spellId, range, packetCast, menu)
     assert(spellId ~= nil and range ~= nil and type(spellId) == "number" and type(range) == "number", "Spell: Can't initialize Spell without valid arguments.")
 
     if _G.srcLib.spellMenu == nil then
-        _G.srcLib.spellMenu = menu or scriptConfig("[SourceLib] SpellClass", "srcSpellClass")
-        _G.srcLib.spellMenu:addParam("predictionType", "Prediction Type",     SCRIPT_PARAM_LIST, 1, { "VPrediction", "Prodiction" })
-        _G.srcLib.spellMenu:addParam("packetCast",     "Enable packet casts", SCRIPT_PARAM_ONOFF, false)
-
-        _G.srcLib.spellMenuCreationTime = os.clock()
-
-        DelayAction(function()
-            if not Prodiction then
-                print("SourceLib: Prodiction not found! Disabling Prodiction support!")
-                _G.srcLib.spellMenuProdictionDisabled = true
+        DelayAction(function(menu)
+            if _G.srcLib.spellMenu == nil and Prodiction then
+                menu = menu or scriptConfig("[SourceLib] SpellClass", "srcSpellClass")
+                menu:addParam("predictionType", "Prediction Type",     SCRIPT_PARAM_LIST, 1, { "VPrediction", "Prodiction" })
+                menu:addParam("packetCast",     "Enable packet casts", SCRIPT_PARAM_ONOFF, false)
+                _G.srcLib.spellMenu = menu
             end
-        end, 5)
+        end, 3, { menu })
     end
 
     self.spellId = spellId
@@ -377,12 +373,13 @@ function Spell:__init(spellId, range, packetCast, menu)
     self._spellNum = spellNum
     spellNum = spellNum + 1
 
-    self.predictionType = _G.srcLib.spellMenu.predictionType
+    -- VPredicion default
+    self.predictionType = 1
 
     AddTickCallback(function()
-        if _G.srcLib.spellMenuProdictionDisabled then
-            _G.srcLib.spellMenu.predictionType = 1
-        end
+        -- Prodiction not found, don't change anything
+        if _G.srcLib.spellMenu == nil then return end
+
         self:SetPredictionType(_G.srcLib.spellMenu.predictionType)
         self.packetCast = _G.srcLib.spellMenu.packetCast
     end)
