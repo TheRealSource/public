@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.068
+local version = 1.069
 
 --[[
 
@@ -826,7 +826,7 @@ function Spell:__Cast(param1, param2)
 
     if self.packetCast then
         if param1 ~= nil and param2 ~= nil then
-            if VectorType(param1) and VectorType(param2) then
+            if type(param1) ~= "number" and type(param2) ~= "number" and VectorType(param1) and VectorType(param2) then
                 Packet("S_CAST", {spellId = self.spellId, toX = param2.x, toY = param2.z, fromX = param1.x, fromY = param1.z}):send()
             else
                 Packet("S_CAST", {spellId = self.spellId, toX = param1, toY = param2, fromX = param1, fromY = param2}):send()
@@ -838,7 +838,7 @@ function Spell:__Cast(param1, param2)
         end
     else
         if param1 ~= nil and param2 ~= nil then
-            if VectorType(param1) and VectorType(param2) then
+            if type(param1) ~= "number" and type(param2) ~= "number" and VectorType(param1) and VectorType(param2) then
                 Packet("S_CAST", {spellId = self.spellId, toX = param2.x, toY = param2.z, fromX = param1.x, fromY = param1.z}):send()
             else
                 CastSpell(self.spellId, param1, param2)
