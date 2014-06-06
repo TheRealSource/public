@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.069
+local version = 1.070
 
 --[[
 
@@ -644,7 +644,7 @@ function Spell:GetPrediction(target)
             end
         elseif self.predictionType == 2 then
             local pos, info = Prodiction.GetPrediction(target, self.range, self.speed, self.delay, self.radius, self.sourcePosition)
-            if info and info.hitchance and info.hitchance >= self.hitChance then
+            if pos and info and info.hitchance then
                 if not self.collision or not info.mCollision() then
                     return pos, info.hitchance, (not self.useAoe and pos or nil)
                 else
