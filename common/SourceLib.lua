@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.070
+local version = 1.071
 
 --[[
 
@@ -1446,9 +1446,18 @@ function _Circle:Draw()
 
     -- Update values if linked spell is given
     if self._linkedSpell then
-        if self._linkedSpellReady and not self._linkedSpell:IsReady() then return end
-        -- Update the radius with the spell range
-        self.radius = self._linkedSpell.range
+        -- Temporary error prevention
+        if not self._linkedSpell.IsReady then
+            if not _G.SourceLibLinkedSpellInformed then
+                _G.SourceLibLinkedSpellInformed = true
+                print("SourceLib: The script \"" .. GetCurrentEnv().FILE_NAME .. "\" is causing issues with circle drawing. Please contact he developer of the named script so he fixes the issue, thanks.")
+            end
+            return
+        else
+            if self._linkedSpellReady and not self._linkedSpell:IsReady() then return end
+            -- Update the radius with the spell range
+            self.radius = self._linkedSpell.range
+        end
     end
 
     -- Menu found
