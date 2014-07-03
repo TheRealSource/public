@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.072
+local version = 1.073
 
 --[[
 
@@ -1123,7 +1123,7 @@ function Spell:OnSendPacket(p)
 
     -- Charged spells
     if self.__charged then
-        if p.header == 229 then
+        if p.header == 230 then
             if os.clock() - self.__charged_castTime <= 0.1 then
                 p:Block()
             end
