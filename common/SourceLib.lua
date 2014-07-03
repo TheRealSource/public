@@ -1132,7 +1132,7 @@ function Spell:OnSendPacket(p)
             if packet:get("spellId") == self.spellId then
                 if os.clock() - self.__charged_castTime <= self.__charged_duration then
                     self:_AbortCharge()
-                    local newPacket = CLoLPacket(229)
+                    local newPacket = CLoLPacket(230)
                     newPacket:EncodeF(player.networkID)
                     newPacket:Encode1(0x80)
                     newPacket:EncodeF(mousePos.x)
