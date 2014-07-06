@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 0.008
+local version = 0.009
 
 --[[
 
@@ -90,7 +90,7 @@ function OnLoad()
     AdvancedCallback:register('OnHeroKilled', LaughOnKill)
 
     PacketHandler:HookOutgoingPacket(Packet.headers.S_MOVE, OnMovePacket)
-    PacketHandler:HookIncomingPacket(65, OnRecvEmote)
+    PacketHandler:HookIncomingPacket(66, OnRecvEmote)
 
 end
 
@@ -107,7 +107,7 @@ end
 function SendEmote(emote)
 
     emote = emote or (menu.random and math.random(#spamTable) or menu.mode)
-    local p = CLoLPacket(71)
+    local p = CLoLPacket(72)
     p.pos = 1
     p:EncodeF(player.networkID)
     p:Encode1(emote)
