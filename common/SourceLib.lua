@@ -3,7 +3,7 @@
 local autoUpdate   = true
 local silentUpdate = false
 
-local version = 1.075
+local version = 1.076
 
 --[[
 
@@ -1695,10 +1695,10 @@ function DamageLib:GetTrueDamage(target, spell, damagetype, basedamage, perlevel
         return self.Magic_damage_m * self.source:CalcMagicDamage(target, basedamage + perlevel * self.source:GetSpellData(spell).level + extra(target)) + ScalingDamage
     end
     if damagetype == _PHYSICAL then
-        return self.Physical_damage_m * self.source:CalcDamage(target, basedamage + perlevel * self.source:GetSpellData(spell).level + extra(target)) + ScalingDamage
+        return self.Physical_damage_m * self.source:CalcDamage(target, basedamage + perlevel * (spell < 4 and self.source:GetSpellData(spell).level or 0) + extra(target)) + ScalingDamage
     end
     if damagetype == _TRUE then
-        return basedamage + perlevel * self.source:GetSpellData(spell).level + extra(target) + ScalingDamage
+        return basedamage + perlevel * (spell < 4 and self.source:GetSpellData(spell).level or 0) + extra(target) + ScalingDamage
     end
 
     return 0
