@@ -1692,7 +1692,7 @@ function DamageLib:GetTrueDamage(target, spell, damagetype, basedamage, perlevel
     end
 
     if damagetype == _MAGIC then
-        return self.Magic_damage_m * self.source:CalcMagicDamage(target, basedamage + perlevel * self.source:GetSpellData(spell).level + extra(target)) + ScalingDamage
+        return self.Magic_damage_m * self.source:CalcMagicDamage(target, basedamage + perlevel * (spell < 4 and self.source:GetSpellData(spell).level or 0) + extra(target)) + ScalingDamage
     end
     if damagetype == _PHYSICAL then
         return self.Physical_damage_m * self.source:CalcDamage(target, basedamage + perlevel * (spell < 4 and self.source:GetSpellData(spell).level or 0) + extra(target)) + ScalingDamage
